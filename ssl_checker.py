@@ -28,7 +28,7 @@ def get_cert(host):
 
     try:
         sock.connect((host, 443))
-        print('\t{}[+]{} --> {}'.format(TextColor.GREEN, TextColor.RESET, host))
+        print('\t{}[+]{} {}'.format(TextColor.GREEN, TextColor.RESET, host))
     except Exception as e:
         print('\t{}[-]{} {} failed: {}'.format(TextColor.RED, TextColor.RESET, host, e))
         return None
@@ -70,13 +70,17 @@ def get_cert_info(cert):
 
 def show_result(hosts):
     """Get the context."""
-    context = {}
+    context, failed_cnt = {}, 0
     print('Analyzing {} hosts:\n'.format(len(hosts)))
     for host in hosts:
         host = clean_hostname(host)
         cert = get_cert(host)
         if cert:
             context[host] = get_cert_info(cert)
+        else:
+            failed_cnt += 1
+
+    print('\n{} successful and {} failed.'.format(len(hosts), failed_cnt))
 
     print(context)
 
