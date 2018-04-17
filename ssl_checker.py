@@ -21,13 +21,13 @@ class TextColor:
     RESET = '\033[39m'
 
 
-def get_cert(host):
+def get_cert(host, port):
     """Connection to the host."""
     osobj = SSL.Context(PROTOCOL_TLSv1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
-        sock.connect((host, 443))
+        sock.connect((host, int(port)))
         print('\t{}[+]{} {}'.format(TextColor.GREEN, TextColor.RESET, host))
     except Exception as e:
         print('\t{}[-]{} {} failed: {}'.format(TextColor.RED, TextColor.RESET, host, e))
@@ -70,11 +70,12 @@ def get_cert_info(cert):
 
 def show_result(hosts):
     """Get the context."""
-    context, failed_cnt = {}, 0
+    context= {}
+    failed_cnt, total_cnt = 0, 0
     print('Analyzing {} hosts:\n'.format(len(hosts)))
     for host in hosts:
-        host = clean_hostname(host)
-        cert = get_cert(host)
+        host, port = filter_hostname(host)
+        cert = get_cert(host, port)
         if cert:
             context[host] = get_cert_info(cert)
         else:
@@ -85,9 +86,14 @@ def show_result(hosts):
     print(context)
 
 
-def clean_hostname(host):
-    """Remove unused characters. Order is important."""
-    return host.replace('http://', '').replace('https://', '').replace('/', '')
+def filter_hostname(host):
+    """Remove unused characters and split by address and port."""
+    host = host.replace('http://', '').replace('https://', '').replace('/', '')
+    port = 443
+    if ':' in host:
+        host, port = host.split(':')
+    
+    return host, port
 
 
 if __name__ == '__main__':
