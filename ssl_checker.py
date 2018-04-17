@@ -12,6 +12,15 @@ except ImportError:
     sys.exit(1)
 
 
+class TextColor:
+    """Text colors."""
+
+    RED = '\033[31m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    RESET = '\033[39m'
+
+
 def get_cert(host):
     """Connection to the host."""
     osobj = SSL.Context(PROTOCOL_TLSv1)
@@ -19,8 +28,9 @@ def get_cert(host):
 
     try:
         sock.connect((host, 443))
+        print('\t{}[+]{} --> {}'.format(TextColor.GREEN, TextColor.RESET, host))
     except Exception as e:
-        print('[X] {} failed: {}'.format(host, e))
+        print('\t{}[-]{} {} failed: {}'.format(TextColor.RED, TextColor.RESET, host, e))
         return None
 
     oscon = SSL.Connection(osobj, sock)
@@ -61,6 +71,7 @@ def get_cert_info(cert):
 def show_result(hosts):
     """Get the context."""
     context = {}
+    print('Analyzing {} hosts:\n'.format(len(hosts)))
     for host in hosts:
         host = clean_hostname(host)
         cert = get_cert(host)
