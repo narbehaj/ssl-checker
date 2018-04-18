@@ -12,13 +12,13 @@ except ImportError:
     sys.exit(1)
 
 
-class TextColor:
+class Clr:
     """Text colors."""
 
+    RST = '\033[39m'
     RED = '\033[31m'
     GREEN = '\033[32m'
     YELLOW = '\033[33m'
-    RESET = '\033[39m'
 
 
 def get_cert(host, port):
@@ -29,7 +29,7 @@ def get_cert(host, port):
     try:
         sock.connect((host, int(port)))
     except Exception as e:
-        print('\t{}[-]{} {} failed: {}'.format(TextColor.RED, TextColor.RESET, host, e))
+        print('\t{}[-]{} {:<20s} failed: {}'.format(Clr.RED, Clr.RST, host, e))
         return None
 
     oscon = SSL.Connection(osobj, sock)
@@ -38,10 +38,10 @@ def get_cert(host, port):
     try:
         oscon.do_handshake()
     except Exception as e:
-        print('\t{}[-]{} {} failed: {}'.format(TextColor.RED, TextColor.RESET, host, e))
+        print('\t{}[-]{} {:<20s} failed: {}'.format(Clr.RED, Clr.RST, host, e))
         return None
 
-    print('\t{}[+]{} {}'.format(TextColor.GREEN, TextColor.RESET, host))
+    print('\t{}[+]{} {}'.format(Clr.GREEN, Clr.RST, host))
     cert = oscon.get_peer_certificate()
     sock.close()
 
@@ -97,7 +97,7 @@ def show_result(hosts):
 
     print('\n{} successful and {} failed.\n'.format(len(hosts) - failed_cnt, failed_cnt))
 
-    print(context)
+    #print(context)
 
 
 def filter_hostname(host):
