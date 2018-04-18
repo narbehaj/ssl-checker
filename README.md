@@ -1,7 +1,7 @@
 # SSL Checker
 #### Simple Python script that collects SSL information from hosts
 
-#About
+# About
 
 It's a simple script running in python that collects SSL information then it returns the group of information in JSON.
 
