@@ -5,12 +5,6 @@
 
 It's a simple script running in python that collects SSL information then it returns the group of information in JSON.
 
-# Requirements
-
-You only need to installl pyOpenSSL:
-
-`pip install pyopenssl`
-
 # Usage
 
 `python ssl_checker.py host1[:port] [host2:port] [host3:port]...`

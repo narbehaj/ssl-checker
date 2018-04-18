@@ -2,14 +2,8 @@
 import socket
 import sys
 
+from ssl import create_default_context
 from datetime import datetime
-from ssl import PROTOCOL_TLSv1
-
-try:
-    from OpenSSL import SSL
-except ImportError:
-    print('Required module does not exist. Install: pip install pyopenssl')
-    sys.exit(1)
 
 
 class TextColor:
@@ -23,8 +17,8 @@ class TextColor:
 
 def get_cert(host, port):
     """Connection to the host."""
-    osobj = SSL.Context(PROTOCOL_TLSv1)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sslctx = create_default_context()
+    sock = sslctx.wrap_socket(socket.socket(), server_hostname=host)
 
     try:
         sock.connect((host, int(port)))
@@ -33,12 +27,7 @@ def get_cert(host, port):
         print('\t{}[-]{} {} failed: {}'.format(TextColor.RED, TextColor.RESET, host, e))
         return None
 
-    oscon = SSL.Connection(osobj, sock)
-    oscon.set_tlsext_host_name(host.encode())
-    oscon.set_connect_state()
-    oscon.do_handshake()
-
-    cert = oscon.get_peer_certificate()
+    cert = sock.getpeercert()
     sock.close()
     return cert
 
@@ -47,24 +36,30 @@ def get_cert_info(cert):
     """Get all the information about cert and create a JSON file."""
     context = {}
 
-    context['issuer_c'] = cert.get_issuer().countryName
-    context['issuer_o'] = cert.get_issuer().organizationName
-    context['issuer_ou'] = cert.get_issuer().organizationalUnitName
-    context['issuer_cn'] = cert.get_issuer().commonName
-    context['cert_sn'] = cert.get_serial_number()
-    context['cert_alg'] = cert.get_signature_algorithm().decode()
-    context['cert_ver'] = cert.get_version()
-    context['cert_exp'] = cert.has_expired()
+    issued_to = dict(x[0] for x in cert['subject'])
+    issued_by = dict(x[0] for x in cert['issuer'])
+
+    context['issuer_c'] = issued_by['countryName']
+    context['issuer_o'] = issued_by['organizationName']
+    context['issuer_cn'] = issued_by['commonName']
+    context['issued_to'] = issued_to['commonName']
+    context['cert_sn'] = cert['serialNumber']
+    context['cert_ver'] = cert['version']
 
     # Valid from
-    valid_from = datetime.strptime(cert.get_notBefore().decode('ascii'),
-                                   '%Y%m%d%H%M%SZ')
+    valid_from = datetime.strptime(cert['notBefore'], '%b %d %H:%M:%S %Y %Z')
     context['valid_from'] = valid_from.strftime('%Y-%m-%d')
 
     # Vali till
-    valid_till = datetime.strptime(cert.get_notAfter().decode('ascii'),
-                                   '%Y%m%d%H%M%SZ')
+    valid_till = datetime.strptime(cert['notAfter'], '%b %d %H:%M:%S %Y %Z')
     context['valid_till'] = valid_till.strftime('%Y-%m-%d')
+
+    # Validity days
+    context['validity_days'] = (valid_till - valid_from).days
+
+    # Expiry check
+    context['expired'] = False if valid_till >= datetime.now() else True
+
     return context
 
 
@@ -92,7 +87,7 @@ def filter_hostname(host):
     port = 443
     if ':' in host:
         host, port = host.split(':')
-    
+
     return host, port
 
 
