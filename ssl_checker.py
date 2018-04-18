@@ -98,7 +98,7 @@ def filter_hostname(host):
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print('Usage: {} host1 [host2] [host3] ...'.format(sys.argv[0]))
+        print('Usage: python {} host1 [host2] [host3] ...'.format(sys.argv[0]))
         sys.exit(0)
 
     show_result(sys.argv[1:])
