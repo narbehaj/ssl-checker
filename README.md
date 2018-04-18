@@ -20,14 +20,16 @@ Port is optional here. The script will use 443 if not specified.
 ## Example
 
 ```bash
-narbeh@narbeh-xps:~/ssl-checker$ python ssl_checker.py cisco.com archive.org ttttessssttt.com
-Analyzing 3 hosts:
+narbeh@narbeh-xps:~/ssl-checker$ python ssl_checker.py test.com narbeh.org:443 archive.org facebook.com:443 twitter.com github.com google.com
+Analyzing 7 hosts:
 
-	[+] cisco.com
+	[+] test.com
+	[+] narbeh.org
 	[+] archive.org
-	[-] ttttessssttt.com failed: [Errno -2] Name or service not known
+	[-] facebook.com         failed: [Errno 111] Connection refused
+	[-] twitter.com          failed: [Errno 111] Connection refused
+	[+] github.com
+	[+] google.com
 
-3 successful and 1 failed.
-
-{'archive.org': {'valid_till': '2020-02-21', 'valid_from': '2016-12-19', 'cert_alg': u'sha256WithRSAEncryption', 'cert_ver': 2, 'cert_sn': 17565460289571369468L, 'cert_exp': False, 'issuer_c': u'US', 'issuer_cn': u'Go Daddy Secure Certificate Authority - G2', 'issuer_o': u'GoDaddy.com, Inc.', 'issuer_ou': u'http://certs.godaddy.com/repository/'}, 'cisco.com': {'valid_till': '2019-12-07', 'valid_from': '2017-12-07', 'cert_alg': u'sha256WithRSAEncryption', 'cert_ver': 2, 'cert_sn': 228799876318721608922476410131646115852301898990L, 'cert_exp': False, 'issuer_c': u'US', 'issuer_cn': u'HydrantID SSL ICA G2', 'issuer_o': u'HydrantID (Avalanche Cloud Corporation)', 'issuer_ou': None}}
+5 successful and 2 failed.
 ```
