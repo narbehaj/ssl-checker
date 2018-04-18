@@ -76,7 +76,7 @@ def show_result(hosts):
         else:
             failed_cnt += 1
 
-    print('\n{} successful and {} failed.'.format(len(hosts), failed_cnt))
+    print('\n{} successful and {} failed.'.format(len(hosts) - failed_cnt, failed_cnt))
 
     print(context)
 
