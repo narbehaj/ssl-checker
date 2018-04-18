@@ -1,17 +1,23 @@
 # SSL Checker
 #### Simple Python script that collects SSL information from hosts
 
-# About
+## About
 
 It's a simple script running in python that collects SSL information then it returns the group of information in JSON.
 
-# Usage
+## Requirements
+
+You only need to installl pyOpenSSL:
+
+`pip install pyopenssl`
+
+## Usage
 
 `python ssl_checker.py host1[:port] [host2:port] [host3:port]...`
 
 Port is optional here. The script will use 443 if not specified.
 
-# Example
+## Example
 
 ```bash
 narbeh@narbeh-xps:~/ssl-checker$ python ssl_checker.py cisco.com archive.org ttttessssttt.com
