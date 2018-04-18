@@ -84,6 +84,11 @@ def show_result(hosts):
     print('Analyzing {} hosts:\n'.format(len(hosts)))
     for host in hosts:
         host, port = filter_hostname(host)
+
+        # Check duplication
+        if host in context.keys():
+            continue
+
         cert = get_cert(host, port)
         if cert:
             context[host] = get_cert_info(cert)
