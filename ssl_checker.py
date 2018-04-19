@@ -25,23 +25,11 @@ def get_cert(host, port):
     """Connection to the host."""
     osobj = SSL.Context(PROTOCOL_TLSv1)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    try:
-        sock.connect((host, int(port)))
-    except Exception as e:
-        print('\t{}[-]{} {:<20s} failed: {}'.format(Clr.RED, Clr.RST, host, e))
-        return None
-
+    sock.connect((host, int(port)))
     oscon = SSL.Connection(osobj, sock)
     oscon.set_tlsext_host_name(host.encode())
     oscon.set_connect_state()
-    try:
-        oscon.do_handshake()
-    except Exception as e:
-        print('\t{}[-]{} {:<20s} failed: {}'.format(Clr.RED, Clr.RST, host, e))
-        return None
-
-    print('\t{}[+]{} {}'.format(Clr.GREEN, Clr.RST, host))
+    oscon.do_handshake()
     cert = oscon.get_peer_certificate()
     sock.close()
 
@@ -79,8 +67,8 @@ def get_cert_info(cert):
 
 def show_result(hosts):
     """Get the context."""
-    context= {}
-    failed_cnt, total_cnt = 0, 0
+    context = {}
+    failed_cnt = 0
     print('Analyzing {} hosts:\n'.format(len(hosts)))
     for host in hosts:
         host, port = filter_hostname(host)
@@ -89,13 +77,16 @@ def show_result(hosts):
         if host in context.keys():
             continue
 
-        cert = get_cert(host, port)
-        if cert:
+        try:
+            cert = get_cert(host, port)
             context[host] = get_cert_info(cert)
-        else:
+            print('\t{}[+]{} {}'.format(Clr.GREEN, Clr.RST, host))
+        except Exception as error:
+            print('\t{}[-]{} {:<20s} failed: {}'.format(Clr.RED, Clr.RST, host, error))
             failed_cnt += 1
 
-    print('\n{} successful and {} failed.\n'.format(len(hosts) - failed_cnt, failed_cnt))
+
+    print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
 
     #print(context)
 
