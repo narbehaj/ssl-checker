@@ -21,6 +21,7 @@ optional arguments:
   -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
                         Hosts as input separated by space
   -j, --json            Enable JSON in the output
+  -p, --pretty          Print pretty and more human readable Json
   -h, --help            Show this help message and exit
 ```
 
@@ -29,6 +30,8 @@ optional arguments:
 Port is optional here. The script will use 443 if not specified.
 
 `-j, --json`	Use this if you want to only have the result in JSON
+
+`-p, --pretty` Use this with `-j` to print indented and human readable json
 
 `-H, --host`	Enter the hosts separated by space
 
