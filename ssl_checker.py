@@ -2,6 +2,7 @@
 import socket
 import sys
 
+from pprint import pprint
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 
@@ -88,7 +89,7 @@ def show_result(hosts):
 
     print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
 
-    #print(context)
+    pprint(context)
 
 
 def filter_hostname(host):
