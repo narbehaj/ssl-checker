@@ -2,7 +2,7 @@
 import socket
 import sys
 
-from pprint import pprint
+from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 
@@ -66,11 +66,15 @@ def get_cert_info(cert):
     return context
 
 
-def show_result(hosts):
+def show_result(user_args):
     """Get the context."""
     context = {}
     failed_cnt = 0
-    print('Analyzing {} hosts:\n'.format(len(hosts)))
+    hosts = user_args.hosts
+
+    if not user_args.json_true:
+        print('Analyzing {} hosts:\n'.format(len(hosts)))
+
     for host in hosts:
         host, port = filter_hostname(host)
 
@@ -81,14 +85,20 @@ def show_result(hosts):
         try:
             cert = get_cert(host, port)
             context[host] = get_cert_info(cert)
-            print('\t{}[+]{} {:<20s} Expired: {}'.format(Clr.GREEN, Clr.RST, host, context[host]['cert_exp']))
+            if not user_args.json_true:
+                print('\t{}[+]{} {:<20s} Expired: {}'.format(Clr.GREEN, Clr.RST, host, context[host]['cert_exp']))
         except Exception as error:
-            print('\t{}[-]{} {:<20s} Failed: {}'.format(Clr.RED, Clr.RST, host, error))
+            if not user_args.json_true:
+                print('\t{}[-]{} {:<20s} Failed: {}'.format(Clr.RED, Clr.RST, host, error))
+
             failed_cnt += 1
 
-    print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
+    if not user_args.json_true:
+        print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
 
-    pprint(context)
+    # Enable JSON output if -j argument specified
+    if user_args.json_true:
+        print(context)
 
 
 def filter_hostname(host):
@@ -101,9 +111,28 @@ def filter_hostname(host):
     return host, port
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print('Usage: python {} host1 [host2] [host3] ...'.format(sys.argv[0]))
-        sys.exit(0)
+def get_args():
+    """Set argparse options."""
+    parser = ArgumentParser(prog='ssl_checker.py', add_help=False)
+    parser.add_argument("-H", "--host", dest="hosts", nargs='*', required=True,
+                        help="Hosts as input separated by space")
+    parser.add_argument("-j", "--json", dest="json_true",
+                        action="store_true", default=False,
+                        help="Enable JSON in the output")
+    parser.add_argument("-h", "--help", default=SUPPRESS,
+                        action='help',
+                        help='Show this help message and exit')
 
-    show_result(sys.argv[1:])
+    args = parser.parse_args()
+
+    # Checks hosts list
+    if isinstance(args.hosts, list):
+        if len(args.hosts) == 0:
+            parser.print_help()
+            sys.exit(0)
+
+    return args
+
+
+if __name__ == '__main__':
+    show_result(get_args())
