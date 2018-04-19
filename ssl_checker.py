@@ -81,11 +81,10 @@ def show_result(hosts):
         try:
             cert = get_cert(host, port)
             context[host] = get_cert_info(cert)
-            print('\t{}[+]{} {}'.format(Clr.GREEN, Clr.RST, host))
+            print('\t{}[+]{} {:<20s} Expired: {}'.format(Clr.GREEN, Clr.RST, host, context[host]['cert_exp']))
         except Exception as error:
-            print('\t{}[-]{} {:<20s} failed: {}'.format(Clr.RED, Clr.RST, host, error))
+            print('\t{}[-]{} {:<20s} Failed: {}'.format(Clr.RED, Clr.RST, host, error))
             failed_cnt += 1
-
 
     print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
 

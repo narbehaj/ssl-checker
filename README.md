@@ -23,13 +23,13 @@ Port is optional here. The script will use 443 if not specified.
 narbeh@narbeh-xps:~/ssl-checker$ python ssl_checker.py test.com narbeh.org:443 archive.org facebook.com:443 twitter.com github.com google.com
 Analyzing 7 hosts:
 
-	[+] test.com
-	[+] narbeh.org
-	[+] archive.org
-	[-] facebook.com         failed: [Errno 111] Connection refused
-	[-] twitter.com          failed: [Errno 111] Connection refused
-	[+] github.com
-	[+] google.com
+	[+] test.com             Expired: False
+	[+] narbeh.org           Expired: False
+	[+] archive.org          Expired: False
+	[-] facebook.com         Failed: [Errno 111] Connection refused
+	[-] twitter.com          Failed: [Errno 111] Connection refused
+	[+] github.com           Expired: False
+	[+] google.com           Expired: False
 
-5 successful and 2 failed.
+5 successful and 2 failed
 ```
