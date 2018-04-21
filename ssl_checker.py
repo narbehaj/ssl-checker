@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import socket
 import sys
+
 from pprint import pprint
 from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
@@ -122,7 +123,7 @@ def get_args():
                         action="store_true", default=False,
                         help="Enable JSON in the output")
     parser.add_argument("-p", "--pretty", dest="pretty_output",
-                        action="store_true",default=False,
+                        action="store_true", default=False,
                         help="Print pretty and more human readable Json")
     parser.add_argument("-h", "--help", default=SUPPRESS,
                         action='help',
