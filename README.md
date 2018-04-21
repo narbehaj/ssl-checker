@@ -3,7 +3,7 @@
 
 ## About
 
-It's a simple script running in python that collects SSL information then it returns the group of information in JSON.
+It's a simple script running in python that collects SSL information then it returns the group of information in JSON. The output will have `valid` key which shows whether or not the hostname matches the certificate.
 
 ## Requirements
 
@@ -59,26 +59,30 @@ Analyzing 7 hosts:
 Example only with the `-j` and `-p` arguments which shows the JSON only. Perfect for piping to another tool.
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H test.com narbeh.org:443
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.com
 {'narbeh.org': {'cert_alg': u'sha256WithRSAEncryption',
                 'cert_exp': False,
-                'cert_sn': 319510066429286596971677345373584681421772L,
+                'cert_sn': 338163108483756707389368573553026254634358L,
                 'cert_ver': 2,
+                'issued_to': u'narbeh.org',
                 'issuer_c': u'US',
                 'issuer_cn': u"Let's Encrypt Authority X3",
                 'issuer_o': u"Let's Encrypt",
                 'issuer_ou': None,
-                'valid_from': '2018-02-17',
-                'valid_till': '2018-05-18',
+                'valid': True,
+                'valid_from': '2018-04-21',
+                'valid_till': '2018-07-20',
                 'validity_days': 90},
  'test.com': {'cert_alg': u'sha256WithRSAEncryption',
               'cert_exp': False,
               'cert_sn': 73932709062103623902948514363737041075L,
               'cert_ver': 2,
+              'issued_to': u'www.test.com',
               'issuer_c': u'US',
               'issuer_cn': u'Network Solutions DV Server CA 2',
               'issuer_o': u'Network Solutions L.L.C.',
               'issuer_ou': None,
+              'valid': False,
               'valid_from': '2017-01-15',
               'valid_till': '2020-01-24',
               'validity_days': 1104}}

@@ -38,10 +38,13 @@ def get_cert(host, port):
     return cert
 
 
-def get_cert_info(cert):
+def get_cert_info(host, cert):
     """Get all the information about cert and create a JSON file."""
     context = {}
 
+    cert_subject = cert.get_subject()
+
+    context['issued_to'] = cert_subject.CN
     context['issuer_c'] = cert.get_issuer().countryName
     context['issuer_o'] = cert.get_issuer().organizationName
     context['issuer_ou'] = cert.get_issuer().organizationalUnitName
@@ -64,6 +67,9 @@ def get_cert_info(cert):
     # Validity days
     context['validity_days'] = (valid_till - valid_from).days
 
+    # Certificate validation
+    context['valid'] = True if host == context['issued_to'] else False
+
     return context
 
 
@@ -85,7 +91,7 @@ def show_result(user_args):
 
         try:
             cert = get_cert(host, port)
-            context[host] = get_cert_info(cert)
+            context[host] = get_cert_info(host, cert)
             if not user_args.json_true:
                 print('\t{}[+]{} {:<20s} Expired: {}'.format(Clr.GREEN, Clr.RST, host, context[host]['cert_exp']))
         except Exception as error:
