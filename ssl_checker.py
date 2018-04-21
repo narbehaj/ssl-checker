@@ -67,10 +67,24 @@ def get_cert_info(host, cert):
     # Validity days
     context['validity_days'] = (valid_till - valid_from).days
 
-    # Certificate validation
-    context['valid'] = True if host == context['issued_to'] else False
-
     return context
+
+
+def print_status(host, context):
+    """Print all the usefull info about host."""
+    days_left = (datetime.strptime(context[host]['valid_till'], '%Y-%m-%d') - datetime.now()).days
+
+    print('\t{}[+]{} {}\n'.format(Clr.GREEN, Clr.RST, host))
+    print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
+    print('\t\tIssued by: {}'.format(context[host]['issuer_o']))
+    print('\t\tValid from: {}'.format(context[host]['valid_from']))
+    print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], days_left))
+    print('\t\tValidity days: {}'.format(context[host]['validity_days']))
+    print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
+    print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
+    print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
+    print('\t\tExpired: {}'.format(context[host]['cert_exp']))
+    print('\t----')
 
 
 def show_result(user_args):
@@ -80,7 +94,7 @@ def show_result(user_args):
     hosts = user_args.hosts
 
     if not user_args.json_true:
-        print('Analyzing {} hosts:\n'.format(len(hosts)))
+        print('Analyzing {} hosts:\n{}\n'.format(len(hosts), '-' * 19))
 
     for host in hosts:
         host, port = filter_hostname(host)
@@ -93,10 +107,11 @@ def show_result(user_args):
             cert = get_cert(host, port)
             context[host] = get_cert_info(host, cert)
             if not user_args.json_true:
-                print('\t{}[+]{} {:<20s} Expired: {}'.format(Clr.GREEN, Clr.RST, host, context[host]['cert_exp']))
+                print_status(host, context)
         except Exception as error:
             if not user_args.json_true:
                 print('\t{}[-]{} {:<20s} Failed: {}'.format(Clr.RED, Clr.RST, host, error))
+                print('\t----')
 
             failed_cnt += 1
 

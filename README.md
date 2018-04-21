@@ -41,18 +41,38 @@ Port is optional here. The script will use 443 if not specified.
 ## Example
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H test.com narbeh.org:443 archive.org facebook.com:443 twitter.com github.com google.com
-Analyzing 7 hosts:
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443 facebook.com
+Analyzing 3 hosts:
+-------------------
 
-	[+] test.com             Expired: False
-	[+] narbeh.org           Expired: False
-	[+] archive.org          Expired: False
+	[+] narbeh.org
+
+		Issued domain: narbeh.org
+		Issued by: Let's Encrypt
+		Valid from: 2018-04-21
+		Valid to: 2018-07-20 (89 days left)
+		Validity days: 90
+		Certificate S/N: 338163108483756707389368573553026254634358
+		Certificate version: 2
+		Certificate algorithm: sha256WithRSAEncryption
+		Expired: False
+	----
+	[+] google.com
+
+		Issued domain: *.google.com
+		Issued by: Google Inc
+		Valid from: 2018-03-28
+		Valid to: 2018-06-20 (59 days left)
+		Validity days: 83
+		Certificate S/N: 2989116342670522968
+		Certificate version: 2
+		Certificate algorithm: sha256WithRSAEncryption
+		Expired: False
+	----
 	[-] facebook.com         Failed: [Errno 111] Connection refused
-	[-] twitter.com          Failed: [Errno 111] Connection refused
-	[+] github.com           Expired: False
-	[+] google.com           Expired: False
+	----
 
-5 successful and 2 failed
+2 successful and 1 failed
 ```
 
 
