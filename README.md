@@ -34,17 +34,17 @@ optional arguments:
 
 Port is optional here. The script will use 443 if not specified.
 
-`-H, --host`		Enter the hosts separated by space
+`-H, --host ` Enter the hosts separated by space
 
-`-s, --socks`	Enable connection through SOCKS server
+`-s, --socks ` Enable connection through SOCKS server
 
-`-j, --json`		Use this if you want to only have the result in JSON
+`-j, --json ` Use this if you want to only have the result in JSON
 
-`-c, --csv`		Enable CSV file export by specifying filename.csv after this argument
+`-c, --csv ` Enable CSV file export by specifying filename.csv after this argument
 
-`-p, --pretty`	Use this with `-j` to print indented and human readable JSON
+`-p, --pretty ` Use this with `-j` to print indented and human readable JSON
 
-`-h, --help`		Shows the help and exit
+`-h, --help`	Shows the help and exit
 
 ## Censored?
 
