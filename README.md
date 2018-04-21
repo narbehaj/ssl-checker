@@ -3,7 +3,7 @@
 
 ## About
 
-It's a simple script running in python that collects SSL information then it returns the group of information in JSON.
+It's a simple script running in python that collects SSL information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server.
 
 ## Requirements
 
@@ -15,11 +15,13 @@ You only need to installl pyOpenSSL:
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-j] [-h]
+usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-s HOST:PORT] [-j] [-p] [-h]
 
 optional arguments:
   -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
                         Hosts as input separated by space
+  -s HOST:PORT, --socks HOST:PORT
+                        Enable SOCKS proxy for connection
   -j, --json            Enable JSON in the output
   -p, --pretty          Print pretty and more human readable Json
   -h, --help            Show this help message and exit
@@ -33,16 +35,55 @@ Port is optional here. The script will use 443 if not specified.
 
 `-p, --pretty` Use this with `-j` to print indented and human readable json
 
+`-s, --socks` Enable connection through SOCKS server
+
 `-H, --host`	Enter the hosts separated by space
 
 `-h, --help` Shows the help and exit
+
+## Censored?
+
+No problem. Pass `-s/--socks` argument to the script as `HOST:PORT` to connect through SOCKS proxy.
+
+```
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com
+Analyzing 1 host(s):
+--------------------
+
+	[-] facebook.com         Failed: [Errno 111] Connection refused
+	----
+
+0 successful and 1 failed
+
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9050
+Analyzing 1 host(s):
+--------------------
+
+	[+] facebook.com
+
+		Issued domain: *.facebook.com
+		Issued by: DigiCert Inc
+		Valid from: 2017-12-15
+		Valid to: 2019-03-22 (334 days left)
+		Validity days: 462
+		Certificate S/N: 14934250041293165463321169237204988608
+		Certificate version: 2
+		Certificate algorithm: sha256WithRSAEncryption
+		Expired: False
+	----
+
+1 successful and 0 failed
+
+```
+
+
 
 
 ## Example
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443 facebook.com
-Analyzing 3 hosts:
+Analyzing 3 host(s):
 -------------------
 
 	[+] narbeh.org
@@ -76,7 +117,7 @@ Analyzing 3 hosts:
 ```
 
 
-Example only with the `-j` and `-p` arguments which shows the JSON only. Perfect for piping to another tool.
+Example only with the `-j/--json` and `-p/--pretty` arguments which shows the JSON only. Perfect for piping to another tool.
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.com

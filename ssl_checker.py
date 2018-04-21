@@ -7,6 +7,7 @@ from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 
+import socks
 try:
     from OpenSSL import SSL
 except ImportError:
@@ -23,10 +24,15 @@ class Clr:
     YELLOW = '\033[33m'
 
 
-def get_cert(host, port):
+def get_cert(host, port, user_args):
     """Connection to the host."""
-    osobj = SSL.Context(PROTOCOL_TLSv1)
+    if user_args.socks:
+        socks_host, socks_port = filter_hostname(user_args.socks)
+        socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, socks_host, int(socks_port), True)
+        socket.socket = socks.socksocket
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    osobj = SSL.Context(PROTOCOL_TLSv1)
     sock.connect((host, int(port)))
     oscon = SSL.Connection(osobj, sock)
     oscon.set_tlsext_host_name(host.encode())
@@ -94,7 +100,7 @@ def show_result(user_args):
     hosts = user_args.hosts
 
     if not user_args.json_true:
-        print('Analyzing {} hosts:\n{}\n'.format(len(hosts), '-' * 19))
+        print('Analyzing {} host(s):\n{}\n'.format(len(hosts), '-' * 20))
 
     for host in hosts:
         host, port = filter_hostname(host)
@@ -104,7 +110,7 @@ def show_result(user_args):
             continue
 
         try:
-            cert = get_cert(host, port)
+            cert = get_cert(host, port, user_args)
             context[host] = get_cert_info(host, cert)
             if not user_args.json_true:
                 print_status(host, context)
@@ -139,15 +145,18 @@ def filter_hostname(host):
 def get_args():
     """Set argparse options."""
     parser = ArgumentParser(prog='ssl_checker.py', add_help=False)
-    parser.add_argument("-H", "--host", dest="hosts", nargs='*', required=True,
-                        help="Hosts as input separated by space")
-    parser.add_argument("-j", "--json", dest="json_true",
-                        action="store_true", default=False,
-                        help="Enable JSON in the output")
-    parser.add_argument("-p", "--pretty", dest="pretty_output",
-                        action="store_true", default=False,
-                        help="Print pretty and more human readable Json")
-    parser.add_argument("-h", "--help", default=SUPPRESS,
+    parser.add_argument('-H', '--host', dest='hosts', nargs='*', required=True,
+                        help='Hosts as input separated by space')
+    parser.add_argument('-s', '--socks', dest='socks',
+                        default=False, metavar='HOST:PORT',
+                        help='Enable SOCKS proxy for connection')
+    parser.add_argument('-j', '--json', dest='json_true',
+                        action='store_true', default=False,
+                        help='Enable JSON in the output')
+    parser.add_argument('-p', '--pretty', dest='pretty_output',
+                        action='store_true', default=False,
+                        help='Print pretty and more human readable Json')
+    parser.add_argument('-h', '--help', default=SUPPRESS,
                         action='help',
                         help='Show this help message and exit')
 
