@@ -33,7 +33,7 @@ Port is optional here. The script will use 443 if not specified.
 
 `-j, --json`	Use this if you want to only have the result in JSON
 
-`-p, --pretty` Use this with `-j` to print indented and human readable json
+`-p, --pretty` Use this with `-j` to print indented and human readable JSON
 
 `-s, --socks` Enable connection through SOCKS server
 
