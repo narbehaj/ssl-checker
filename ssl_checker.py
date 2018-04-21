@@ -110,6 +110,7 @@ def show_result(user_args):
         else:
             print(context)
 
+
 def filter_hostname(host):
     """Remove unused characters and split by address and port."""
     host = host.replace('http://', '').replace('https://', '').replace('/', '')
