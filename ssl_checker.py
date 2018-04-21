@@ -2,12 +2,10 @@
 import socket
 import sys
 
-from pprint import pprint
 from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 
-import socks
 try:
     from OpenSSL import SSL
 except ImportError:
@@ -27,6 +25,7 @@ class Clr:
 def get_cert(host, port, user_args):
     """Connection to the host."""
     if user_args.socks:
+        import socks
         socks_host, socks_port = filter_hostname(user_args.socks)
         socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, socks_host, int(socks_port), True)
         socket.socket = socks.socksocket
@@ -127,6 +126,7 @@ def show_result(user_args):
     # Enable JSON output if -j argument specified
     if user_args.json_true:
         if user_args.pretty_output:
+            from pprint import pprint
             pprint(context)
         else:
             print(context)
