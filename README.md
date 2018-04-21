@@ -13,7 +13,7 @@ You only need to installl pyOpenSSL:
 
 ## Usage
 
-```bash
+```
 ./ssl_checker.py -h
 usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-j] [-h]
 
@@ -40,7 +40,7 @@ Port is optional here. The script will use 443 if not specified.
 
 ## Example
 
-```bash
+```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H test.com narbeh.org:443 archive.org facebook.com:443 twitter.com github.com google.com
 Analyzing 7 hosts:
 
@@ -58,7 +58,7 @@ Analyzing 7 hosts:
 
 Example only with the `-j` argument which show the JSON only. Perfect for piping to another tool.
 
-```bash
+```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -H test.com narbeh.org:443 
 {'test.com': {'valid_till': '2020-01-24', 'valid_from': '2017-01-15', 'cert_alg': u'sha256WithRSAEncryption', 'cert_ver': 2, 'cert_sn': 73932709062103623902948514363737041075L, 'cert_exp': False, 'issuer_c': u'US', 'issuer_cn': u'Network Solutions DV Server CA 2', 'issuer_o': u'Network Solutions L.L.C.', 'validity_days': 1104, 'issuer_ou': None}, 'narbeh.org': {'valid_till': '2018-05-18', 'valid_from': '2018-02-17', 'cert_alg': u'sha256WithRSAEncryption', 'cert_ver': 2, 'cert_sn': 319510066429286596971677345373584681421772L, 'cert_exp': False, 'issuer_c': u'US', 'issuer_cn': u"Let's Encrypt Authority X3", 'issuer_o': u"Let's Encrypt", 'validity_days': 90, 'issuer_ou': None}}
 ```
