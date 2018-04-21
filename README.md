@@ -56,9 +56,30 @@ Analyzing 7 hosts:
 ```
 
 
-Example only with the `-j` argument which show the JSON only. Perfect for piping to another tool.
+Example only with the `-j` and `-p` arguments which shows the JSON only. Perfect for piping to another tool.
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -H test.com narbeh.org:443 
-{'test.com': {'valid_till': '2020-01-24', 'valid_from': '2017-01-15', 'cert_alg': u'sha256WithRSAEncryption', 'cert_ver': 2, 'cert_sn': 73932709062103623902948514363737041075L, 'cert_exp': False, 'issuer_c': u'US', 'issuer_cn': u'Network Solutions DV Server CA 2', 'issuer_o': u'Network Solutions L.L.C.', 'validity_days': 1104, 'issuer_ou': None}, 'narbeh.org': {'valid_till': '2018-05-18', 'valid_from': '2018-02-17', 'cert_alg': u'sha256WithRSAEncryption', 'cert_ver': 2, 'cert_sn': 319510066429286596971677345373584681421772L, 'cert_exp': False, 'issuer_c': u'US', 'issuer_cn': u"Let's Encrypt Authority X3", 'issuer_o': u"Let's Encrypt", 'validity_days': 90, 'issuer_ou': None}}
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H test.com narbeh.org:443
+{'narbeh.org': {'cert_alg': u'sha256WithRSAEncryption',
+                'cert_exp': False,
+                'cert_sn': 319510066429286596971677345373584681421772L,
+                'cert_ver': 2,
+                'issuer_c': u'US',
+                'issuer_cn': u"Let's Encrypt Authority X3",
+                'issuer_o': u"Let's Encrypt",
+                'issuer_ou': None,
+                'valid_from': '2018-02-17',
+                'valid_till': '2018-05-18',
+                'validity_days': 90},
+ 'test.com': {'cert_alg': u'sha256WithRSAEncryption',
+              'cert_exp': False,
+              'cert_sn': 73932709062103623902948514363737041075L,
+              'cert_ver': 2,
+              'issuer_c': u'US',
+              'issuer_cn': u'Network Solutions DV Server CA 2',
+              'issuer_o': u'Network Solutions L.L.C.',
+              'issuer_ou': None,
+              'valid_from': '2017-01-15',
+              'valid_till': '2020-01-24',
+              'validity_days': 1104}}
 ```
