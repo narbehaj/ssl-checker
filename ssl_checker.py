@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import socket
 import sys
-
+from pprint import pprint
 from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
@@ -98,8 +98,10 @@ def show_result(user_args):
 
     # Enable JSON output if -j argument specified
     if user_args.json_true:
-        print(context)
-
+        if user_args.pretty_output:
+            pprint(context)
+        else:
+            print(context)
 
 def filter_hostname(host):
     """Remove unused characters and split by address and port."""
@@ -119,6 +121,9 @@ def get_args():
     parser.add_argument("-j", "--json", dest="json_true",
                         action="store_true", default=False,
                         help="Enable JSON in the output")
+    parser.add_argument("-p", "--pretty", dest="pretty_output",
+                        action="store_true",default=False,
+                        help="Print pretty and more human readable Json")
     parser.add_argument("-h", "--help", default=SUPPRESS,
                         action='help',
                         help='Show this help message and exit')
