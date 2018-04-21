@@ -3,7 +3,7 @@
 
 ## About
 
-It's a simple script running in python that collects SSL information then it returns the group of information in JSON. The output will have `valid` key which shows whether or not the hostname matches the certificate.
+It's a simple script running in python that collects SSL information then it returns the group of information in JSON.
 
 ## Requirements
 
@@ -89,7 +89,6 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.
                 'issuer_cn': u"Let's Encrypt Authority X3",
                 'issuer_o': u"Let's Encrypt",
                 'issuer_ou': None,
-                'valid': True,
                 'valid_from': '2018-04-21',
                 'valid_till': '2018-07-20',
                 'validity_days': 90},
@@ -102,7 +101,6 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.
               'issuer_cn': u'Network Solutions DV Server CA 2',
               'issuer_o': u'Network Solutions L.L.C.',
               'issuer_ou': None,
-              'valid': False,
               'valid_from': '2017-01-15',
               'valid_till': '2020-01-24',
               'validity_days': 1104}}
