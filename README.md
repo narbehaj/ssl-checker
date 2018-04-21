@@ -3,7 +3,7 @@
 
 ## About
 
-It's a simple script running in python that collects SSL information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server.
+It's a simple script running in python that collects SSL information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server. 
 
 ## Requirements
 
@@ -15,7 +15,8 @@ You only need to installl pyOpenSSL:
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-s HOST:PORT] [-j] [-p] [-h]
+usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-s HOST:PORT] [-j]
+                      [-c FILENAME.CSV] [-p] [-h]
 
 optional arguments:
   -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
@@ -23,6 +24,8 @@ optional arguments:
   -s HOST:PORT, --socks HOST:PORT
                         Enable SOCKS proxy for connection
   -j, --json            Enable JSON in the output
+  -c FILENAME.CSV, --csv FILENAME.CSV
+                        Enable CSV file export
   -p, --pretty          Print pretty and more human readable Json
   -h, --help            Show this help message and exit
 ```
@@ -31,13 +34,15 @@ optional arguments:
 
 Port is optional here. The script will use 443 if not specified.
 
-`-j, --json`	Use this if you want to only have the result in JSON
-
-`-p, --pretty` Use this with `-j` to print indented and human readable JSON
+`-H, --host`	Enter the hosts separated by space
 
 `-s, --socks` Enable connection through SOCKS server
 
-`-H, --host`	Enter the hosts separated by space
+`-j, --json`	Use this if you want to only have the result in JSON
+
+`-c, --csv` Enable CSV file export by specifying filename.csv after this argument
+
+`-p, --pretty` Use this with `-j` to print indented and human readable JSON
 
 `-h, --help` Shows the help and exit
 
@@ -146,3 +151,28 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.
               'valid_till': '2020-01-24',
               'validity_days': 1104}}
 ```
+
+
+
+CSV export is also easy. After running the script with `-c/--csv` argument and specifying `filename.csv` after it, you'll have something like this:
+
+```
+narbeh@narbeh-xps:~/ssl-checker$ cat domain.csv 
+narbeh.org
+issued_to,narbeh.org
+valid_till,2018-07-20
+valid_from,2018-04-21
+issuer_ou,None
+cert_ver,2
+cert_alg,sha256WithRSAEncryption
+cert_exp,False
+issuer_c,US
+issuer_cn,Let's Encrypt Authority X3
+issuer_o,Let's Encrypt
+validity_days,90
+cert_sn,338163108483756707389368573553026254634358
+
+```
+
+
+

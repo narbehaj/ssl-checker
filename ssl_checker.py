@@ -99,7 +99,7 @@ def show_result(user_args):
     hosts = user_args.hosts
 
     if not user_args.json_true:
-        print('Analyzing {} host(s):\n{}\n'.format(len(hosts), '-' * 20))
+        print('Analyzing {} host(s):\n{}\n'.format(len(hosts), '-' * 21))
 
     for host in hosts:
         host, port = filter_hostname(host)
@@ -123,13 +123,26 @@ def show_result(user_args):
     if not user_args.json_true:
         print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
 
-    # Enable JSON output if -j argument specified
+    # CSV export if -c/--csv is specified
+    if user_args.csv_enabled:
+        export_csv(context, user_args.csv_enabled)
+
+    # Enable JSON output if -j/--json argument specified
     if user_args.json_true:
         if user_args.pretty_output:
             from pprint import pprint
             pprint(context)
         else:
             print(context)
+
+
+def export_csv(context, filename):
+    """Export all context results to CSV file."""
+    with open(filename, 'w') as csv_file:
+        for host in context.keys():
+            csv_file.write('{}\n'.format(host))
+            for key, value in context[host].items():
+                csv_file.write('{},{}\n'.format(key, value))
 
 
 def filter_hostname(host):
@@ -153,6 +166,9 @@ def get_args():
     parser.add_argument('-j', '--json', dest='json_true',
                         action='store_true', default=False,
                         help='Enable JSON in the output')
+    parser.add_argument('-c', '--csv', dest='csv_enabled',
+                        default=False, metavar='FILENAME.CSV',
+                        help='Enable CSV file export')
     parser.add_argument('-p', '--pretty', dest='pretty_output',
                         action='store_true', default=False,
                         help='Print pretty and more human readable Json')
