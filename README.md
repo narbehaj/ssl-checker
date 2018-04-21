@@ -43,7 +43,7 @@ Port is optional here. The script will use 443 if not specified.
 
 ## Censored?
 
-No problem. Pass `-s/--socks` argument to the script as `HOST:PORT` to connect through SOCKS proxy.
+No problem. Pass `-s/--socks` argument to the script with `HOST:PORT` format to connect through SOCKS proxy.
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com
