@@ -52,15 +52,14 @@ def analyze_ssl(host, context):
         from urllib2 import urlopen
 
     api_url = 'https://api.ssllabs.com/api/v3/'
-    counter = 0
-
     while True:
         main_request = loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
-        if main_request['status'] in ['DNS', 'IN_PROGRESS']:
-            print('Analyzing {}. Please wait'.format(host) + '.' * counter)
-            sys.stdout.write("\033[F")
-            counter += 1
+        if main_request['status'] == 'DNS':
+            print('Analyzing the security of {}. Please wait...'.format(host))
             continue
+        if main_request['status'] == 'IN_PROGRESS':
+            # We can find a way to show the progress
+            pass
         elif main_request['status'] == 'READY':
             break
 
