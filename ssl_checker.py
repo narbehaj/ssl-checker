@@ -83,7 +83,7 @@ def print_status(host, context):
     print('\t{}[+]{} {}\n'.format(Clr.GREEN, Clr.RST, host))
     print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
     print('\t\tIssued to: {}'.format(context[host]['issued_o']))
-    print('\t\tIssued by: {}'.format(context[host]['issuer_o']))
+    print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
     print('\t\tValid from: {}'.format(context[host]['valid_from']))
     print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], days_left))
     print('\t\tValidity days: {}'.format(context[host]['validity_days']))
@@ -159,7 +159,8 @@ def filter_hostname(host):
 
 def get_args():
     """Set argparse options."""
-    parser = ArgumentParser(prog='ssl_checker.py', add_help=False)
+    parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
+                            description="""Collects useful information about given hosts SSL certificates.""")
     parser.add_argument('-H', '--host', dest='hosts', nargs='*', required=True,
                         help='Hosts as input separated by space')
     parser.add_argument('-s', '--socks', dest='socks',
