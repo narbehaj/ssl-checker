@@ -5,6 +5,7 @@ import sys
 from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
+from time import sleep
 
 try:
     from OpenSSL import SSL
@@ -56,9 +57,11 @@ def analyze_ssl(host, context):
         main_request = loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
         if main_request['status'] == 'DNS':
             print('Analyzing the security of {}. Please wait...'.format(host))
+            sleep(5)
             continue
         if main_request['status'] == 'IN_PROGRESS':
             # We can find a way to show the progress
+            sleep(5)
             pass
         elif main_request['status'] == 'READY':
             break
