@@ -43,6 +43,40 @@ def get_cert(host, port, user_args):
     return cert
 
 
+def analyze_ssl(host, context):
+    """Analyze the security of the SSL certificate."""
+    from json import loads
+    try:
+        from urllib.request import urlopen
+    except ImportError:
+        from urllib2 import urlopen
+
+    api_url = 'https://api.ssllabs.com/api/v3/'
+    counter = 0
+
+    while True:
+        main_request = loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
+        if main_request['status'] in ['DNS', 'IN_PROGRESS']:
+            print('Analyzing {}. Please wait'.format(host) + '.' * counter)
+            sys.stdout.write("\033[F")
+            counter += 1
+            continue
+        elif main_request['status'] == 'READY':
+            break
+
+    context[host]['grade'] = main_request['endpoints'][0]['grade']
+    endpoint_data = loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(host, main_request['endpoints'][0]['ipAddress'])).read().decode('utf-8'))
+
+    context[host]['poodle_vuln'] = endpoint_data['details']['poodle']
+    context[host]['heartbleed_vuln'] = endpoint_data['details']['heartbleed']
+    context[host]['heartbeat_vuln'] = endpoint_data['details']['heartbeat']
+    context[host]['freak_vuln'] = endpoint_data['details']['freak']
+    context[host]['logjam_vuln'] = endpoint_data['details']['logjam']
+    context[host]['drownVulnerable'] = endpoint_data['details']['drownVulnerable']
+
+    return context
+
+
 def get_cert_info(host, cert):
     """Get all the information about cert and create a JSON file."""
     context = {}
@@ -76,7 +110,7 @@ def get_cert_info(host, cert):
     return context
 
 
-def print_status(host, context):
+def print_status(host, context, analyze=False):
     """Print all the usefull info about host."""
     days_left = (datetime.strptime(context[host]['valid_till'], '%Y-%m-%d') - datetime.now()).days
 
@@ -90,8 +124,18 @@ def print_status(host, context):
     print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
     print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
     print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
-    print('\t\tExpired: {}'.format(context[host]['cert_exp']))
-    print('\t----')
+
+    if analyze:
+        print('\t\tCertificate grade: {}'.format(context[host]['grade']))
+        print('\t\tPoodle vulnerability: {}'.format(context[host]['poodle_vuln']))
+        print('\t\tHeartbleed vulnerability: {}'.format(context[host]['heartbleed_vuln']))
+        print('\t\tHearbeat vulnerability: {}'.format(context[host]['heartbeat_vuln']))
+        print('\t\tFreak vulnerability: {}'.format(context[host]['freak_vuln']))
+        print('\t\tLogjam vulnerability: {}'.format(context[host]['logjam_vuln']))
+        print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
+
+
+    print('\t\tExpired: {}\n'.format(context[host]['cert_exp']))
 
 
 def show_result(user_args):
@@ -103,6 +147,9 @@ def show_result(user_args):
     if not user_args.json_true:
         print('Analyzing {} host(s):\n{}\n'.format(len(hosts), '-' * 21))
 
+    if not user_args.json_true and user_args.analyze:
+        print('{}Warning: -a/--analyze is enabled. It takes more time...{}\n'.format(Clr.YELLOW, Clr.RST))
+
     for host in hosts:
         host, port = filter_hostname(host)
 
@@ -113,14 +160,21 @@ def show_result(user_args):
         try:
             cert = get_cert(host, port, user_args)
             context[host] = get_cert_info(host, cert)
+
+            # Analyze the certificate if enabled
+            if user_args.analyze:
+                context = analyze_ssl(host, context)
+
             if not user_args.json_true:
-                print_status(host, context)
+                print_status(host, context, user_args.analyze)
         except Exception as error:
             if not user_args.json_true:
-                print('\t{}[-]{} {:<20s} Failed: {}'.format(Clr.RED, Clr.RST, host, error))
-                print('\t----')
+                print('\t{}[-]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
+                failed_cnt += 1
+        except KeyboardInterrupt:
+            print('{}Canceling script...{}\n'.format(Clr.YELLOW, Clr.RST))
+            sys.exit(1)
 
-            failed_cnt += 1
 
     if not user_args.json_true:
         print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
@@ -160,18 +214,21 @@ def filter_hostname(host):
 def get_args():
     """Set argparse options."""
     parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
-                            description="""Collects useful information about given hosts SSL certificates.""")
+                            description="""Collects useful information about given host's SSL certificates.""")
     parser.add_argument('-H', '--host', dest='hosts', nargs='*', required=True,
                         help='Hosts as input separated by space')
     parser.add_argument('-s', '--socks', dest='socks',
                         default=False, metavar='HOST:PORT',
                         help='Enable SOCKS proxy for connection')
-    parser.add_argument('-j', '--json', dest='json_true',
-                        action='store_true', default=False,
-                        help='Enable JSON in the output')
     parser.add_argument('-c', '--csv', dest='csv_enabled',
                         default=False, metavar='FILENAME.CSV',
                         help='Enable CSV file export')
+    parser.add_argument('-j', '--json', dest='json_true',
+                        action='store_true', default=False,
+                        help='Enable JSON in the output')
+    parser.add_argument('-a', '--analyze', dest='analyze',
+                        default=False, action='store_true',
+                        help='Enable SSL security analysis on the host')
     parser.add_argument('-p', '--pretty', dest='pretty_output',
                         action='store_true', default=False,
                         help='Print pretty and more human readable Json')

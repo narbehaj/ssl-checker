@@ -1,9 +1,11 @@
 # SSL Checker
-#### Simple Python script that collects SSL information from hosts
+#### Python script that collects SSL information from hosts
 
 ## About
 
 It's a simple script running in python that collects SSL information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server. 
+
+One of the good thing about this script, is that it will full analyze the SSL certificate for security issue's and will include the report in the output or CSV file.
 
 ## Requirements
 
@@ -15,17 +17,20 @@ You only need to installl pyOpenSSL:
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-s HOST:PORT] [-j]
-                      [-c FILENAME.CSV] [-p] [-h]
+usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-s HOST:PORT] [-c FILENAME.CSV]
+                      [-j] [-a] [-p] [-h]
+
+Collects useful information about given host's SSL certificates.
 
 optional arguments:
   -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
                         Hosts as input separated by space
   -s HOST:PORT, --socks HOST:PORT
                         Enable SOCKS proxy for connection
-  -j, --json            Enable JSON in the output
   -c FILENAME.CSV, --csv FILENAME.CSV
                         Enable CSV file export
+  -j, --json            Enable JSON in the output
+  -a, --analyze         Enable SSL security analysis on the host
   -p, --pretty          Print pretty and more human readable Json
   -h, --help            Show this help message and exit
 ```
@@ -38,9 +43,11 @@ Port is optional here. The script will use 443 if not specified.
 
 `-s, --socks ` Enable connection through SOCKS server
 
+`-c, --csv ` Enable CSV file export by specifying filename.csv after this argument
+
 `-j, --json ` Use this if you want to only have the result in JSON
 
-`-c, --csv ` Enable CSV file export by specifying filename.csv after this argument
+`-a, --analyze` This argument will include security analyze on the certificate. It will take more time.
 
 `-p, --pretty ` Use this with `-j` to print indented and human readable JSON
 
@@ -87,40 +94,79 @@ Analyzing 1 host(s):
 ## Example
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443 facebook.com
-Analyzing 3 host(s):
--------------------
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443
+Analyzing 2 host(s):
+---------------------
 
 	[+] narbeh.org
 
 		Issued domain: narbeh.org
-		Issued by: Let's Encrypt
+		Issued to: None
+		Issued by: Let's Encrypt (US)
 		Valid from: 2018-04-21
-		Valid to: 2018-07-20 (89 days left)
+		Valid to: 2018-07-20 (88 days left)
 		Validity days: 90
 		Certificate S/N: 338163108483756707389368573553026254634358
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
-	----
+
 	[+] google.com
 
 		Issued domain: *.google.com
-		Issued by: Google Inc
+		Issued to: Google Inc
+		Issued by: Google Inc (US)
 		Valid from: 2018-03-28
-		Valid to: 2018-06-20 (59 days left)
+		Valid to: 2018-06-20 (58 days left)
 		Validity days: 83
 		Certificate S/N: 2989116342670522968
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
-	----
-	[-] facebook.com         Failed: [Errno 111] Connection refused
-	----
 
-2 successful and 1 failed
+
+2 successful and 0 failed
 ```
 
+
+
+## Security Analyze
+
+By passing `-a/--analyze` to the script, it will scan the certificate for security issues and vulnerabilities. It will also mark a grade for the certificate. **This will take more time to finish.**
+
+```
+Analyzing 1 host(s):
+---------------------
+
+Warning: -a/--analyze is enabled. It takes more time...
+
+	[+] narbeh.org
+
+		Issued domain: narbeh.org
+		Issued to: None
+		Issued by: Let's Encrypt (US)
+		Valid from: 2018-04-21
+		Valid to: 2018-07-20 (88 days left)
+		Validity days: 90
+		Certificate S/N: 338163108483756707389368573553026254634358
+		Certificate version: 2
+		Certificate algorithm: sha256WithRSAEncryption
+		Certificate grade: A
+		Poodle vulnerability: False
+		Heartbleed vulnerability: False
+		Hearbeat vulnerability: True
+		Freak vulnerability: False
+		Logjam vulnerability: False
+		Drown vulnerability: False
+		Expired: False
+
+
+1 successful and 0 failed
+```
+
+
+
+##JSON And CSV Output
 
 Example only with the `-j/--json` and `-p/--pretty` arguments which shows the JSON only. Perfect for piping to another tool.
 
@@ -130,6 +176,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.
                 'cert_exp': False,
                 'cert_sn': 338163108483756707389368573553026254634358L,
                 'cert_ver': 2,
+                'issued_o': None,
                 'issued_to': u'narbeh.org',
                 'issuer_c': u'US',
                 'issuer_cn': u"Let's Encrypt Authority X3",
@@ -142,6 +189,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.
               'cert_exp': False,
               'cert_sn': 73932709062103623902948514363737041075L,
               'cert_ver': 2,
+              'issued_o': None,
               'issued_to': u'www.test.com',
               'issuer_c': u'US',
               'issuer_cn': u'Network Solutions DV Server CA 2',
@@ -176,3 +224,7 @@ cert_sn,338163108483756707389368573553026254634358
 
 
 
+### Author
+
+Narbeh Arakil
+http://narbeh.org
