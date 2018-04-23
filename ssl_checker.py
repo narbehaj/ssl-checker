@@ -44,6 +44,14 @@ def get_cert(host, port, user_args):
     return cert
 
 
+def border_msg(message):
+    """Print the message in the box."""
+    row = len(message)
+    h = ''.join(['+'] + ['-' * row] + ['+'])
+    result = h + '\n' "|" + message + "|"'\n' + h
+    print(result)
+
+
 def analyze_ssl(host, context):
     """Analyze the security of the SSL certificate."""
     from json import loads
@@ -147,7 +155,7 @@ def show_result(user_args):
     hosts = user_args.hosts
 
     if not user_args.json_true:
-        print('Analyzing {} host(s):\n{}\n'.format(len(hosts), '-' * 21))
+        border_msg('Analyzing {} host(s)'.format(len(hosts)))
 
     if not user_args.json_true and user_args.analyze:
         print('{}Warning: -a/--analyze is enabled. It takes more time...{}\n'.format(Clr.YELLOW, Clr.RST))
