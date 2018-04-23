@@ -59,17 +59,18 @@ No problem. Pass `-s/--socks` argument to the script with `HOST:PORT` format to 
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com
-Analyzing 1 host(s):
---------------------
++-------------------+
+|Analyzing 1 host(s)|
++-------------------+
 
 	[-] facebook.com         Failed: [Errno 111] Connection refused
-	----
 
 0 successful and 1 failed
 
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9050
-Analyzing 1 host(s):
---------------------
++-------------------+
+|Analyzing 1 host(s)|
++-------------------+
 
 	[+] facebook.com
 
@@ -82,7 +83,6 @@ Analyzing 1 host(s):
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
-	----
 
 1 successful and 0 failed
 
@@ -95,8 +95,9 @@ Analyzing 1 host(s):
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443
-Analyzing 2 host(s):
----------------------
++-------------------+
+|Analyzing 2 host(s)|
++-------------------+
 
 	[+] narbeh.org
 
@@ -135,8 +136,9 @@ Analyzing 2 host(s):
 By passing `-a/--analyze` to the script, it will scan the certificate for security issues and vulnerabilities. It will also mark a grade for the certificate. **This will take more time to finish.**
 
 ```
-Analyzing 1 host(s):
----------------------
++-------------------+
+|Analyzing 2 host(s)|
++-------------------+
 
 Warning: -a/--analyze is enabled. It takes more time...
 
