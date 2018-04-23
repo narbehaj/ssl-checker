@@ -144,7 +144,6 @@ def print_status(host, context, analyze=False):
         print('\t\tLogjam vulnerability: {}'.format(context[host]['logjam_vuln']))
         print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
 
-
     print('\t\tExpired: {}\n'.format(context[host]['cert_exp']))
 
 
@@ -184,7 +183,6 @@ def show_result(user_args):
         except KeyboardInterrupt:
             print('{}Canceling script...{}\n'.format(Clr.YELLOW, Clr.RST))
             sys.exit(1)
-
 
     if not user_args.json_true:
         print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
