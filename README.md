@@ -136,6 +136,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443
 By passing `-a/--analyze` to the script, it will scan the certificate for security issues and vulnerabilities. It will also mark a grade for the certificate. **This will take more time to finish.**
 
 ```
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 -a
 +-------------------+
 |Analyzing 2 host(s)|
 +-------------------+
