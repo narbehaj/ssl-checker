@@ -166,7 +166,7 @@ Warning: -a/--analyze is enabled. It takes more time...
 
 
 
-##JSON And CSV Output
+## JSON And CSV Output
 
 Example only with the `-j/--json` and `-p/--pretty` arguments which shows the JSON only. Perfect for piping to another tool.
 
