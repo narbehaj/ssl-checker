@@ -139,7 +139,7 @@ def print_status(host, context, analyze=False):
         print('\t\tCertificate grade: {}'.format(context[host]['grade']))
         print('\t\tPoodle vulnerability: {}'.format(context[host]['poodle_vuln']))
         print('\t\tHeartbleed vulnerability: {}'.format(context[host]['heartbleed_vuln']))
-        print('\t\tHearbeat vulnerability: {}'.format(context[host]['heartbeat_vuln']))
+        print('\t\tHeartbeat vulnerability: {}'.format(context[host]['heartbeat_vuln']))
         print('\t\tFreak vulnerability: {}'.format(context[host]['freak_vuln']))
         print('\t\tLogjam vulnerability: {}'.format(context[host]['logjam_vuln']))
         print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
