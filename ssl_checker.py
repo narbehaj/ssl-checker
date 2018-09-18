@@ -116,6 +116,7 @@ def get_cert_info(host, cert):
     context['issuer_ou'] = cert.get_issuer().organizationalUnitName
     context['issuer_cn'] = cert.get_issuer().commonName
     context['cert_sn'] = cert.get_serial_number()
+    context['cert_sha1'] = cert.digest("sha1")
     context['cert_alg'] = cert.get_signature_algorithm().decode()
     context['cert_ver'] = cert.get_version()
     context['cert_sans'] = get_cert_sans(cert)
@@ -149,6 +150,7 @@ def print_status(host, context, analyze=False):
     print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], days_left))
     print('\t\tValidity days: {}'.format(context[host]['validity_days']))
     print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
+    print('\t\tCertificate SHA1 FP: {}'.format(context[host]['cert_sha1']))
     print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
     print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
 
