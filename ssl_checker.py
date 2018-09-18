@@ -6,6 +6,7 @@ from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 from time import sleep
+from csv import DictWriter
 
 try:
     from OpenSSL import SSL, crypto
@@ -98,6 +99,8 @@ def get_cert_sans(x509cert):
         ext = x509cert.get_extension(i)
         if 'subjectAltName' in str(ext.get_short_name()):
             san = ext.__str__()
+    # replace commas to not break csv output
+    san = san.replace(',', ';')
     return san
 
 def get_cert_info(host, cert):
@@ -160,7 +163,7 @@ def print_status(host, context, analyze=False):
 
     print('\t\tExpired: {}'.format(context[host]['cert_exp']))
     print('\t\tCertificate SANs: ')
-    for san in context[host]['cert_sans'].split(','): print('\t\t\t{}'.format(san))
+    for san in context[host]['cert_sans'].split(';'): print('\t\t\t{}'.format(san))
 
 
 
@@ -216,15 +219,14 @@ def show_result(user_args):
         else:
             print(context)
 
-
 def export_csv(context, filename):
-    """Export all context results to CSV file."""
+    """ Export all context results to CSV file."""
+    # prepend dict keys to write column headers
     with open(filename, 'w') as csv_file:
+        csv_writer = DictWriter(csv_file, context.items()[0][1].keys())
+        csv_writer.writeheader()
         for host in context.keys():
-            csv_file.write('{}\n'.format(host))
-            for key, value in context[host].items():
-                csv_file.write('{},{}\n'.format(key, value))
-
+            csv_writer.writerow(context[host])
 
 def filter_hostname(host):
     """Remove unused characters and split by address and port."""
