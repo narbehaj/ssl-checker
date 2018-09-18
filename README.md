@@ -17,14 +17,16 @@ You only need to installl pyOpenSSL:
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py -H [HOSTS [HOSTS ...]] [-s HOST:PORT] [-c FILENAME.CSV]
-                      [-j] [-a] [-p] [-h]
+usage: ssl_checker.py [-H [HOSTS [HOSTS ...]] | -f HOST_FILE] [-s HOST:PORT]
+                      [-c FILENAME.CSV] [-j] [-a] [-p] [-h]
 
 Collects useful information about given host's SSL certificates.
 
 optional arguments:
   -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
                         Hosts as input separated by space
+  -f HOST_FILE, --host-file HOST_FILE
+                        Hosts as input from file
   -s HOST:PORT, --socks HOST:PORT
                         Enable SOCKS proxy for connection
   -c FILENAME.CSV, --csv FILENAME.CSV
@@ -38,6 +40,8 @@ optional arguments:
 
 
 Port is optional here. The script will use 443 if not specified.
+
+`-f, --host-file` File containing hostnames for input
 
 `-H, --host ` Enter the hosts separated by space
 
