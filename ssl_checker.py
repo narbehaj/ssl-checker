@@ -8,7 +8,7 @@ from ssl import PROTOCOL_TLSv1
 from time import sleep
 
 try:
-    from OpenSSL import SSL
+    from OpenSSL import SSL, crypto
 except ImportError:
     print('Required module does not exist. Install: pip install pyopenssl')
     sys.exit(1)
@@ -86,6 +86,19 @@ def analyze_ssl(host, context):
 
     return context
 
+def get_cert_sans(x509cert):
+    ''' 
+    Get Subject Alt Names from Certificate. Shameless taken from stack overflow: 
+    https://stackoverflow.com/users/4547691/anatolii-chmykhalo 
+    '''
+
+    san = ''
+    ext_count = x509cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = x509cert.get_extension(i)
+        if 'subjectAltName' in str(ext.get_short_name()):
+            san = ext.__str__()
+    return san
 
 def get_cert_info(host, cert):
     """Get all the information about cert and create a JSON file."""
@@ -102,6 +115,7 @@ def get_cert_info(host, cert):
     context['cert_sn'] = cert.get_serial_number()
     context['cert_alg'] = cert.get_signature_algorithm().decode()
     context['cert_ver'] = cert.get_version()
+    context['cert_sans'] = get_cert_sans(cert)
     context['cert_exp'] = cert.has_expired()
 
     # Valid from
@@ -144,7 +158,10 @@ def print_status(host, context, analyze=False):
         print('\t\tLogjam vulnerability: {}'.format(context[host]['logjam_vuln']))
         print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
 
-    print('\t\tExpired: {}\n'.format(context[host]['cert_exp']))
+    print('\t\tExpired: {}'.format(context[host]['cert_exp']))
+    print('\t\tCertificate SANs: ')
+    for san in context[host]['cert_sans'].split(','): print('\t\t\t{}'.format(san))
+
 
 
 def show_result(user_args):
@@ -223,16 +240,13 @@ def get_args():
     """Set argparse options."""
     parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
                             description="""Collects useful information about given host's SSL certificates.""")
-    
-    
+
     group = parser.add_mutually_exclusive_group()
 
     group.add_argument('-H', '--host', dest='hosts', nargs='*', required=False,
                         help='Hosts as input separated by space')
-    
     group.add_argument('-f', '--host-file', dest='host_file', required=False,
                         help='Hosts as input from file')
-
     parser.add_argument('-s', '--socks', dest='socks',
                         default=False, metavar='HOST:PORT',
                         help='Enable SOCKS proxy for connection')
