@@ -6,9 +6,10 @@ from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 from time import sleep
+from csv import DictWriter
 
 try:
-    from OpenSSL import SSL
+    from OpenSSL import SSL, crypto
 except ImportError:
     print('Required module does not exist. Install: pip install pyopenssl')
     sys.exit(1)
@@ -86,6 +87,21 @@ def analyze_ssl(host, context):
 
     return context
 
+def get_cert_sans(x509cert):
+    ''' 
+    Get Subject Alt Names from Certificate. Shameless taken from stack overflow: 
+    https://stackoverflow.com/users/4547691/anatolii-chmykhalo 
+    '''
+
+    san = ''
+    ext_count = x509cert.get_extension_count()
+    for i in range(0, ext_count):
+        ext = x509cert.get_extension(i)
+        if 'subjectAltName' in str(ext.get_short_name()):
+            san = ext.__str__()
+    # replace commas to not break csv output
+    san = san.replace(',', ';')
+    return san
 
 def get_cert_info(host, cert):
     """Get all the information about cert and create a JSON file."""
@@ -100,8 +116,10 @@ def get_cert_info(host, cert):
     context['issuer_ou'] = cert.get_issuer().organizationalUnitName
     context['issuer_cn'] = cert.get_issuer().commonName
     context['cert_sn'] = cert.get_serial_number()
+    context['cert_sha1'] = cert.digest("sha1")
     context['cert_alg'] = cert.get_signature_algorithm().decode()
     context['cert_ver'] = cert.get_version()
+    context['cert_sans'] = get_cert_sans(cert)
     context['cert_exp'] = cert.has_expired()
 
     # Valid from
@@ -132,6 +150,7 @@ def print_status(host, context, analyze=False):
     print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], days_left))
     print('\t\tValidity days: {}'.format(context[host]['validity_days']))
     print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
+    print('\t\tCertificate SHA1 FP: {}'.format(context[host]['cert_sha1']))
     print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
     print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
 
@@ -144,7 +163,10 @@ def print_status(host, context, analyze=False):
         print('\t\tLogjam vulnerability: {}'.format(context[host]['logjam_vuln']))
         print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
 
-    print('\t\tExpired: {}\n'.format(context[host]['cert_exp']))
+    print('\t\tExpired: {}'.format(context[host]['cert_exp']))
+    print('\t\tCertificate SANs: ')
+    for san in context[host]['cert_sans'].split(';'): print('\t\t\t{}'.format(san))
+
 
 
 def show_result(user_args):
@@ -199,15 +221,14 @@ def show_result(user_args):
         else:
             print(context)
 
-
 def export_csv(context, filename):
-    """Export all context results to CSV file."""
+    """ Export all context results to CSV file."""
+    # prepend dict keys to write column headers
     with open(filename, 'w') as csv_file:
+        csv_writer = DictWriter(csv_file, context.items()[0][1].keys())
+        csv_writer.writeheader()
         for host in context.keys():
-            csv_file.write('{}\n'.format(host))
-            for key, value in context[host].items():
-                csv_file.write('{},{}\n'.format(key, value))
-
+            csv_writer.writerow(context[host])
 
 def filter_hostname(host):
     """Remove unused characters and split by address and port."""
@@ -223,8 +244,13 @@ def get_args():
     """Set argparse options."""
     parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
                             description="""Collects useful information about given host's SSL certificates.""")
-    parser.add_argument('-H', '--host', dest='hosts', nargs='*', required=True,
+
+    group = parser.add_mutually_exclusive_group()
+
+    group.add_argument('-H', '--host', dest='hosts', nargs='*', required=False,
                         help='Hosts as input separated by space')
+    group.add_argument('-f', '--host-file', dest='host_file', required=False,
+                        help='Hosts as input from file')
     parser.add_argument('-s', '--socks', dest='socks',
                         default=False, metavar='HOST:PORT',
                         help='Enable SOCKS proxy for connection')
@@ -245,6 +271,12 @@ def get_args():
                         help='Show this help message and exit')
 
     args = parser.parse_args()
+
+    # Get hosts from file if provided
+    if args.host_file:
+        hosts_file = open(args.host_file, 'r')
+        args.hosts = hosts_file.readlines()
+        hosts_file.close()
 
     # Checks hosts list
     if isinstance(args.hosts, list):
