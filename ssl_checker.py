@@ -223,8 +223,16 @@ def get_args():
     """Set argparse options."""
     parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
                             description="""Collects useful information about given host's SSL certificates.""")
-    parser.add_argument('-H', '--host', dest='hosts', nargs='*', required=True,
+    
+    
+    group = parser.add_mutually_exclusive_group()
+
+    group.add_argument('-H', '--host', dest='hosts', nargs='*', required=False,
                         help='Hosts as input separated by space')
+    
+    group.add_argument('-f', '--host-file', dest='host_file', required=False,
+                        help='Hosts as input from file')
+
     parser.add_argument('-s', '--socks', dest='socks',
                         default=False, metavar='HOST:PORT',
                         help='Enable SOCKS proxy for connection')
@@ -245,6 +253,12 @@ def get_args():
                         help='Show this help message and exit')
 
     args = parser.parse_args()
+
+    # Get hosts from file if provided
+    if args.host_file:
+        hosts_file = open(args.host_file, 'r')
+        args.hosts = hosts_file.readlines()
+        hosts_file.close()
 
     # Checks hosts list
     if isinstance(args.hosts, list):
