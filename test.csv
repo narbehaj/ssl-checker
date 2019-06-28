@@ -1,0 +1,2 @@
+issued_to,cert_sans,valid_till,valid_from,issuer_ou,cert_ver,cert_alg,issued_o,cert_exp,cert_sha1,issuer_c,issuer_cn,issuer_o,validity_days,cert_sn
+*.snapp.ir,DNS:*.snapp.ir; DNS:snapp.ir,2020-06-26,2018-06-27,Certum Certification Authority,2,sha256WithRSAEncryption,,False,0E:B0:2A:18:11:84:E0:D1:2B:F5:45:8B:60:12:D6:7C:3C:C3:EB:3F,PL,Certum Domain Validation CA SHA2,Unizeto Technologies S.A.,730,119113201785671136860518844406779440954

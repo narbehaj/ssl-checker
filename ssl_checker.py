@@ -117,7 +117,7 @@ def get_cert_info(host, cert):
     context['issuer_ou'] = cert.get_issuer().organizationalUnitName
     context['issuer_cn'] = cert.get_issuer().commonName
     context['cert_sn'] = cert.get_serial_number()
-    context['cert_sha1'] = cert.digest("sha1")
+    context['cert_sha1'] = cert.digest('sha1')
     context['cert_alg'] = cert.get_signature_algorithm().decode()
     context['cert_ver'] = cert.get_version()
     context['cert_sans'] = get_cert_sans(cert)
@@ -180,7 +180,7 @@ def show_result(user_args):
     hosts = user_args.hosts
 
     if not user_args.json_true:
-        border_msg('Analyzing {} host(s)'.format(len(hosts)))
+        border_msg(' Analyzing {} host(s) '.format(len(hosts)))
 
     if not user_args.json_true and user_args.analyze:
         print('{}Warning: -a/--analyze is enabled. It takes more time...{}\n'.format(Clr.YELLOW, Clr.RST))
@@ -211,7 +211,7 @@ def show_result(user_args):
             sys.exit(1)
 
     if not user_args.json_true:
-        print('\n{} successful and {} failed\n'.format(len(hosts) - failed_cnt, failed_cnt))
+        border_msg(' {} successful and {} failed '.format(len(hosts) - failed_cnt, failed_cnt))
 
     # CSV export if -c/--csv is specified
     if user_args.csv_enabled:
