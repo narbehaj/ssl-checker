@@ -165,9 +165,10 @@ def print_status(host, context, analyze=False):
         print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
 
     print('\t\tExpired: {}'.format(context[host]['cert_exp']))
-    print('\t\tCertificate SANs: ')
+    print('\t\tCertificate SAN\'s: ')
+
     for san in context[host]['cert_sans'].split(';'):
-        print('\t\t\t{}'.format(san))
+        print('\t\t \\_ {}'.format(san.strip()))
 
 
 def show_result(user_args):
@@ -276,9 +277,8 @@ def get_args():
 
     # Get hosts from file if provided
     if args.host_file:
-        hosts_file = open(args.host_file, 'r')
-        args.hosts = hosts_file.readlines()
-        hosts_file.close()
+        with open(args.host_file) as f:
+            args.hosts = f.read().splitlines()
 
     # Checks hosts list
     if isinstance(args.hosts, list):
