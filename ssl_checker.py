@@ -170,6 +170,8 @@ def print_status(host, context, analyze=False):
     for san in context[host]['cert_sans'].split(';'):
         print('\t\t \\_ {}'.format(san.strip()))
 
+    print('\n')
+
 
 def show_result(user_args):
     """Get the context."""

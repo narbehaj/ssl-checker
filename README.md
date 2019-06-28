@@ -235,7 +235,7 @@ cert_sn,338163108483756707389368573553026254634358
 
 - Enable timeout for connections and handshakes
 - HTML export ability
-
+- Make print_status cleaner and smarter
 
 
 ### Author
