@@ -251,7 +251,7 @@ def get_args():
     parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
                             description="""Collects useful information about given host's SSL certificates.""")
 
-    group = parser.add_mutually_exclusive_group()
+    group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-H', '--host', dest='hosts', nargs='*',
                        required=False, help='Hosts as input separated by space')
     group.add_argument('-f', '--host-file', dest='host_file',
