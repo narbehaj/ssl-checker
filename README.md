@@ -51,7 +51,7 @@ Port is optional here. The script will use 443 if not specified.
 
 `-j, --json ` Use this if you want to only have the result in JSON
 
-`-a, --analyze` This argument will include security analyze on the certificate. It will take more time. No result means failed to analyze. 
+`-a, --analyze` This argument will include security analyze on the certificate. Takes more time. No result means failed to analyze. 
 
 `-p, --pretty ` Use this with `-j` to print indented and human readable JSON
 
