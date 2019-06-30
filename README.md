@@ -32,7 +32,7 @@ optional arguments:
   -c FILENAME.CSV, --csv FILENAME.CSV
                         Enable CSV file export
   -j, --json            Enable JSON in the output
-  -a, --analyze         Enable SSL security analysis on the host
+  -a, --analyze         Enable SSL security analysis on the host.
   -p, --pretty          Print pretty and more human readable Json
   -h, --help            Show this help message and exit
 ```
@@ -51,7 +51,7 @@ Port is optional here. The script will use 443 if not specified.
 
 `-j, --json ` Use this if you want to only have the result in JSON
 
-`-a, --analyze` This argument will include security analyze on the certificate. It will take more time.
+`-a, --analyze` This argument will include security analyze on the certificate. It will take more time. No result means failed to analyze. 
 
 `-p, --pretty ` Use this with `-j` to print indented and human readable JSON
 
@@ -69,7 +69,9 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com
 
 	[-] facebook.com         Failed: [Errno 111] Connection refused
 
-0 successful and 1 failed
++------------------------------------------------------+
+| Successful: 0 | Failed: 1 | Duration: 0:00:00.710470 |
++------------------------------------------------------+
 
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9050
 +-------------------+
@@ -88,7 +90,9 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
 
-1 successful and 0 failed
++------------------------------------------------------+
+| Successful: 1 | Failed: 0 | Duration: 0:00:00.710470 |
++------------------------------------------------------+
 
 ```
 
@@ -98,39 +102,48 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 ## Example
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org google.com:443
-+-------------------+
-|Analyzing 2 host(s)|
-+-------------------+
-
-	[+] narbeh.org
-
-		Issued domain: narbeh.org
+narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
++---------------------+
+| Analyzing 2 host(s) |
++---------------------+
+	[+] time.com
+	-------------
+		Issued domain: time.com
 		Issued to: None
-		Issued by: Let's Encrypt (US)
-		Valid from: 2018-04-21
-		Valid to: 2018-07-20 (88 days left)
-		Validity days: 90
-		Certificate S/N: 338163108483756707389368573553026254634358
+		Issued by: Amazon (US)
+		Valid from: 2018-11-07
+		Valid to: 2019-12-07 (159 days left)
+		Validity days: 395
+		Certificate S/N: 10018094209647532371913518187860771165
+		Certificate SHA1 FP: 64:C4:2E:AF:38:2A:28:64:A0:A8:B8:6B:02:05:86:1F:E7:F6:E5:FF
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
+		Certificate SAN's: 
+		 \_ DNS:time.com
+		 \_ DNS:*.time.com
 
-	[+] google.com
 
-		Issued domain: *.google.com
-		Issued to: Google Inc
-		Issued by: Google Inc (US)
-		Valid from: 2018-03-28
-		Valid to: 2018-06-20 (58 days left)
-		Validity days: 83
-		Certificate S/N: 2989116342670522968
+	[+] github.com
+	---------------
+		Issued domain: github.com
+		Issued to: GitHub, Inc.
+		Issued by: DigiCert Inc (US)
+		Valid from: 2018-05-08
+		Valid to: 2020-06-03 (338 days left)
+		Validity days: 757
+		Certificate S/N: 13324412563135569597699362973539517727
+		Certificate SHA1 FP: CA:06:F5:6B:25:8B:7A:0D:4F:2B:05:47:09:39:47:86:51:15:19:84
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
+		Certificate SAN's: 
+		 \_ DNS:github.com
+		 \_ DNS:www.github.com
 
-
-2 successful and 0 failed
++------------------------------------------------------+
+| Successful: 2 | Failed: 0 | Duration: 0:00:01.429145 |
++------------------------------------------------------+
 ```
 
 
@@ -141,9 +154,9 @@ By passing `-a/--analyze` to the script, it will scan the certificate for securi
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 -a
-+-------------------+
-|Analyzing 2 host(s)|
-+-------------------+
++---------------------+
+| Analyzing 1 host(s) |
++---------------------+
 
 Warning: -a/--analyze is enabled. It takes more time...
 
@@ -167,8 +180,9 @@ Warning: -a/--analyze is enabled. It takes more time...
 		Drown vulnerability: False
 		Expired: False
 
-
-1 successful and 0 failed
++------------------------------------------------------+
+| Successful: 1 | Failed: 0 | Duration: 0:00:01.429145 |
++------------------------------------------------------+
 ```
 
 

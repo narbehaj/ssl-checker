@@ -64,20 +64,20 @@ def analyze_ssl(host, context):
     api_url = 'https://api.ssllabs.com/api/v3/'
     while True:
         main_request = loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
-        if main_request['status'] == 'DNS':
-            print('Analyzing the security of {}. Please wait...'.format(host))
+        if main_request['status'] in ('DNS', 'IN_PROGRESS'):
             sleep(5)
             continue
-        if main_request['status'] == 'IN_PROGRESS':
-            # We can find a way to show the progress
-            sleep(5)
-            pass
         elif main_request['status'] == 'READY':
             break
 
-    context[host]['grade'] = main_request['endpoints'][0]['grade']
-    endpoint_data = loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(host, main_request['endpoints'][0]['ipAddress'])).read().decode('utf-8'))
+    endpoint_data = loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(
+        host, main_request['endpoints'][0]['ipAddress'])).read().decode('utf-8'))
 
+    # if the certificate is invalid
+    if endpoint_data['statusMessage'] == 'Certificate not valid for domain name':
+        return context
+
+    context[host]['grade'] = main_request['endpoints'][0]['grade']
     context[host]['poodle_vuln'] = endpoint_data['details']['poodle']
     context[host]['heartbleed_vuln'] = endpoint_data['details']['heartbleed']
     context[host]['heartbeat_vuln'] = endpoint_data['details']['heartbeat']
@@ -117,7 +117,7 @@ def get_cert_info(host, cert):
     context['issuer_ou'] = cert.get_issuer().organizationalUnitName
     context['issuer_cn'] = cert.get_issuer().commonName
     context['cert_sn'] = cert.get_serial_number()
-    context['cert_sha1'] = cert.digest('sha1')
+    context['cert_sha1'] = cert.digest('sha1').decode()
     context['cert_alg'] = cert.get_signature_algorithm().decode()
     context['cert_ver'] = cert.get_version()
     context['cert_sans'] = get_cert_sans(cert)
@@ -143,7 +143,7 @@ def print_status(host, context, analyze=False):
     """Print all the usefull info about host."""
     days_left = (datetime.strptime(context[host]['valid_till'], '%Y-%m-%d') - datetime.now()).days
 
-    print('\t{}[+]{} {}\n'.format(Clr.GREEN, Clr.RST, host))
+    print('\t{}[+]{} {}\n\t{}'.format(Clr.GREEN, Clr.RST, host, '-' * (len(host) + 5)))
     print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
     print('\t\tIssued to: {}'.format(context[host]['issued_o']))
     print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
@@ -155,7 +155,7 @@ def print_status(host, context, analyze=False):
     print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
     print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
 
-    if analyze:
+    if analyze and context.get('grade', False):  # If analyze part fails
         print('\t\tCertificate grade: {}'.format(context[host]['grade']))
         print('\t\tPoodle vulnerability: {}'.format(context[host]['poodle_vuln']))
         print('\t\tHeartbleed vulnerability: {}'.format(context[host]['heartbleed_vuln']))
@@ -177,6 +177,7 @@ def show_result(user_args):
     """Get the context."""
     context = {}
     failed_cnt = 0
+    start_time = datetime.now()
     hosts = user_args.hosts
 
     if not user_args.json_true:
@@ -211,7 +212,8 @@ def show_result(user_args):
             sys.exit(1)
 
     if not user_args.json_true:
-        border_msg(' {} successful and {} failed '.format(len(hosts) - failed_cnt, failed_cnt))
+        border_msg(' Successful: {} | Failed: {} | Duration: {} '.format(
+            len(hosts) - failed_cnt, failed_cnt, datetime.now() - start_time))
 
     # CSV export if -c/--csv is specified
     if user_args.csv_enabled:
@@ -230,7 +232,7 @@ def export_csv(context, filename):
     """Export all context results to CSV file."""
     # prepend dict keys to write column headers
     with open(filename, 'w') as csv_file:
-        csv_writer = DictWriter(csv_file, context.items()[0][1].keys())
+        csv_writer = DictWriter(csv_file, list(context.items())[0][1].keys())
         csv_writer.writeheader()
         for host in context.keys():
             csv_writer.writerow(context[host])
