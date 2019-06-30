@@ -13,6 +13,10 @@ You only need to installl pyOpenSSL:
 
 `pip install pyopenssl`
 
+or
+
+`pip install -r requirements.txt`
+
 ## Usage
 
 ```
