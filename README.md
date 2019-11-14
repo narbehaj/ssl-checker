@@ -37,7 +37,7 @@ optional arguments:
                         Enable CSV file export
   -j, --json            Enable JSON in the output
   -a, --analyze         Enable SSL security analysis on the host.
-  -p, --pretty          Print pretty and more human readable Json
+  -p, --pretty          Print pretty and more human readable JSON
   -h, --help            Show this help message and exit
 ```
 

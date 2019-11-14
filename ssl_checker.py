@@ -272,7 +272,7 @@ def get_args():
                         help='Enable SSL security analysis on the host')
     parser.add_argument('-p', '--pretty', dest='pretty_output',
                         action='store_true', default=False,
-                        help='Print pretty and more human readable Json')
+                        help='Print pretty and more human readable JSON')
     parser.add_argument('-h', '--help', default=SUPPRESS,
                         action='help',
                         help='Show this help message and exit')
