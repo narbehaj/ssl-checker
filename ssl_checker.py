@@ -223,7 +223,7 @@ def show_result(user_args):
     if user_args.json_true:
         if user_args.pretty_output:
             from pprint import pprint
-            print(json.dumps(context, indent=4))
+            pprint(context)
         else:
             print(json.dumps(context))
 
