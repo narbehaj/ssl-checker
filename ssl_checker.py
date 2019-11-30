@@ -7,6 +7,7 @@ from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 from time import sleep
 from csv import DictWriter
+import json
 
 try:
     from OpenSSL import SSL
@@ -55,7 +56,6 @@ def border_msg(message):
 
 def analyze_ssl(host, context):
     """Analyze the security of the SSL certificate."""
-    from json import loads
     try:
         from urllib.request import urlopen
     except ImportError:
@@ -223,9 +223,9 @@ def show_result(user_args):
     if user_args.json_true:
         if user_args.pretty_output:
             from pprint import pprint
-            pprint(context)
+            print(json.dumps(context, indent=4))
         else:
-            print(context)
+            print(json.dumps(context))
 
 
 def export_csv(context, filename):
