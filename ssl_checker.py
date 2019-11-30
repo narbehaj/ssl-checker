@@ -225,11 +225,7 @@ def show_result(user_args):
 
     # Enable JSON output if -j/--json argument specified
     if user_args.json_true:
-        if user_args.pretty_output:
-            from pprint import pprint
-            pprint(context)
-        else:
-            print(json.dumps(context))
+        print(json.dumps(context))
 
 
 def export_csv(context, filename):
@@ -274,9 +270,6 @@ def get_args():
     parser.add_argument('-a', '--analyze', dest='analyze',
                         default=False, action='store_true',
                         help='Enable SSL security analysis on the host')
-    parser.add_argument('-p', '--pretty', dest='pretty_output',
-                        action='store_true', default=False,
-                        help='Print pretty and more human readable JSON')
     parser.add_argument('-h', '--help', default=SUPPRESS,
                         action='help',
                         help='Show this help message and exit')

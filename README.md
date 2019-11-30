@@ -37,7 +37,6 @@ optional arguments:
                         Enable CSV file export
   -j, --json            Enable JSON in the output
   -a, --analyze         Enable SSL security analysis on the host.
-  -p, --pretty          Print pretty and more human readable JSON
   -h, --help            Show this help message and exit
 ```
 
@@ -56,8 +55,6 @@ Port is optional here. The script will use 443 if not specified.
 `-j, --json ` Use this if you want to only have the result in JSON
 
 `-a, --analyze` This argument will include security analyze on the certificate. Takes more time. No result means failed to analyze. 
-
-`-p, --pretty ` Use this with `-j` to print indented and human readable JSON
 
 `-h, --help`	Shows the help and exit
 
@@ -157,7 +154,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 By passing `-a/--analyze` to the script, it will scan the certificate for security issues and vulnerabilities. It will also mark a grade for the certificate. **This will take more time to finish.**
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 -a
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H  narbeh.org:443 -a
 +---------------------+
 | Analyzing 1 host(s) |
 +---------------------+
@@ -193,36 +190,11 @@ Warning: -a/--analyze is enabled. It takes more time...
 
 ## JSON And CSV Output
 
-Example only with the `-j/--json` and `-p/--pretty` arguments which shows the JSON only. Perfect for piping to another tool.
+Example only with the `-j/--json` argument which shows the JSON only. Perfect for piping to another tool.
 
 ```
-narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -p -H  narbeh.org:443 test.com
-{'narbeh.org': {'cert_alg': u'sha256WithRSAEncryption',
-                'cert_exp': False,
-                'cert_sn': 338163108483756707389368573553026254634358L,
-                'cert_ver': 2,
-                'issued_o': None,
-                'issued_to': u'narbeh.org',
-                'issuer_c': u'US',
-                'issuer_cn': u"Let's Encrypt Authority X3",
-                'issuer_o': u"Let's Encrypt",
-                'issuer_ou': None,
-                'valid_from': '2018-04-21',
-                'valid_till': '2018-07-20',
-                'validity_days': 90},
- 'test.com': {'cert_alg': u'sha256WithRSAEncryption',
-              'cert_exp': False,
-              'cert_sn': 73932709062103623902948514363737041075L,
-              'cert_ver': 2,
-              'issued_o': None,
-              'issued_to': u'www.test.com',
-              'issuer_c': u'US',
-              'issuer_cn': u'Network Solutions DV Server CA 2',
-              'issuer_o': u'Network Solutions L.L.C.',
-              'issuer_ou': None,
-              'valid_from': '2017-01-15',
-              'valid_till': '2020-01-24',
-              'validity_days': 1104}}
+narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -H  narbeh.org:443 test.com
+{"narbeh.org": {"issued_to": "narbeh.org", "cert_sans": "DNS:narbeh.org", "valid_till": "2019-12-26", "valid_from": "2019-09-27", "issuer_ou": null, "days_left": 25, "cert_ver": 2, "cert_alg": "sha256WithRSAEncryption", "issued_o": null, "cert_exp": false, "cert_sha1": "05:52:4E:89:1E:98:1D:40:C1:41:F4:DD:F7:51:86:20:27:CF:E7:7F", "issuer_c": "US", "issuer_cn": "Let's Encrypt Authority X3", "issuer_o": "Let's Encrypt", "validity_days": 90, "cert_sn": 293690843427182569577385918507679703674563}}
 ```
 
 
