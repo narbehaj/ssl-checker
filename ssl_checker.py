@@ -136,6 +136,10 @@ def get_cert_info(host, cert):
     # Validity days
     context['validity_days'] = (valid_till - valid_from).days
 
+    # Validity in days from now
+    now = datetime.now()
+    context['days_left'] = (valid_till - now).days
+
     return context
 
 
