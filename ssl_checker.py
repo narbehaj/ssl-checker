@@ -116,7 +116,7 @@ def get_cert_info(host, cert):
     context['issuer_o'] = cert.get_issuer().organizationName
     context['issuer_ou'] = cert.get_issuer().organizationalUnitName
     context['issuer_cn'] = cert.get_issuer().commonName
-    context['cert_sn'] = cert.get_serial_number()
+    context['cert_sn'] = str(cert.get_serial_number())
     context['cert_sha1'] = cert.digest('sha1').decode()
     context['cert_alg'] = cert.get_signature_algorithm().decode()
     context['cert_ver'] = cert.get_version()
