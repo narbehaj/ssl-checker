@@ -63,14 +63,14 @@ def analyze_ssl(host, context):
 
     api_url = 'https://api.ssllabs.com/api/v3/'
     while True:
-        main_request = loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
+        main_request = json.loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
         if main_request['status'] in ('DNS', 'IN_PROGRESS'):
             sleep(5)
             continue
         elif main_request['status'] == 'READY':
             break
 
-    endpoint_data = loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(
+    endpoint_data = json.loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(
         host, main_request['endpoints'][0]['ipAddress'])).read().decode('utf-8'))
 
     # if the certificate is invalid
