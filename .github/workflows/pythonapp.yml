@@ -29,6 +29,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test the script
       run: |
-        python ssl_checker.py
+        python ssl_checker.py -h
         python ssl_checker.py -H google.com
         python ssl_checker.py -H google.com -j
