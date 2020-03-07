@@ -194,7 +194,7 @@ Example only with the `-j/--json` argument which shows the JSON only. Perfect fo
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -H  narbeh.org:443 test.com
-{"narbeh.org": {"issued_to": "narbeh.org", "cert_sans": "DNS:narbeh.org", "valid_till": "2019-12-26", "valid_from": "2019-09-27", "issuer_ou": null, "days_left": 25, "cert_ver": 2, "cert_alg": "sha256WithRSAEncryption", "issued_o": null, "cert_exp": false, "cert_sha1": "05:52:4E:89:1E:98:1D:40:C1:41:F4:DD:F7:51:86:20:27:CF:E7:7F", "issuer_c": "US", "issuer_cn": "Let's Encrypt Authority X3", "issuer_o": "Let's Encrypt", "validity_days": 90, "cert_sn": 293690843427182569577385918507679703674563}}
+{"narbeh.org": {"issued_to": "narbeh.org", "cert_sans": "DNS:narbeh.org", "valid_till": "2019-12-26", "valid_from": "2019-09-27", "issuer_ou": null, "days_left": 25, "cert_ver": 2, "tcp_port": 443, "cert_alg": "sha256WithRSAEncryption", "issued_o": null, "cert_exp": false, "cert_sha1": "05:52:4E:89:1E:98:1D:40:C1:41:F4:DD:F7:51:86:20:27:CF:E7:7F", "issuer_c": "US", "issuer_cn": "Let's Encrypt Authority X3", "issuer_o": "Let's Encrypt", "validity_days": 90, "cert_sn": 293690843427182569577385918507679703674563}}
 ```
 
 
