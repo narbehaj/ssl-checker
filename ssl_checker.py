@@ -200,6 +200,7 @@ def show_result(user_args):
         try:
             cert = get_cert(host, port, user_args)
             context[host] = get_cert_info(host, cert)
+            context[host]['tcp_port'] = int(port)
 
             # Analyze the certificate if enabled
             if user_args.analyze:
