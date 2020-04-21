@@ -30,5 +30,12 @@ jobs:
     - name: Test the script
       run: |
         python ssl_checker.py -h
+    - name: Test a host
+      run: |
         python ssl_checker.py -H google.com
+    - name: Test JSON output
+      run: |
         python ssl_checker.py -H google.com -j
+    - name: Test CSV output
+      run: |
+        python ssl_checker.py -H google.com -c test.csv
