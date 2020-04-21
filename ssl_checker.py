@@ -110,6 +110,7 @@ def get_cert_info(host, cert):
 
     cert_subject = cert.get_subject()
 
+    context['host'] = host
     context['issued_to'] = cert_subject.CN
     context['issued_o'] = cert_subject.O
     context['issuer_c'] = cert.get_issuer().countryName
