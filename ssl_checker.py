@@ -227,7 +227,10 @@ def show_result(user_args):
 
     # Enable JSON output if -j/--json argument specified
     if user_args.json_true:
-        print(json.dumps(context))
+        for host in hosts:
+            with open(host.split(".")[0] + ".json", "w", encoding="UTF-8") as fp:
+                fp.write(json.dumps(context))
+            print(json.dumps(context))
 
 
 def export_csv(context, filename):
