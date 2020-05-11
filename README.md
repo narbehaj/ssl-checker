@@ -1,15 +1,15 @@
 # SSL Checker
-#### Python script that collects SSL information from hosts
+#### Python script that collects SSL/TLS information from hosts
 
 ## About
 
-It's a simple script running in python that collects SSL information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server. 
+It's a simple script running in python that collects SSL/TLS information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server.
 
-One of the good thing about this script, is that it will full analyze the SSL certificate for security issue's and will include the report in the output or CSV file.
+One of the good thing about this script, is that it will full analyze the SSL certificate for security issue's and will include the report in the output, CSV or JSON file.
 
 ## Requirements
 
-You only need to installl pyOpenSSL:
+You only need to install pyOpenSSL:
 
 `pip install pyopenssl`
 
@@ -21,8 +21,8 @@ or
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py [-H [HOSTS [HOSTS ...]] | -f HOST_FILE] [-s HOST:PORT]
-                      [-c FILENAME.CSV] [-j] [-a] [-p] [-h]
+usage: ssl_checker.py (-H [HOSTS [HOSTS ...]] | -f HOST_FILE) [-s HOST:PORT]
+                      [-c FILENAME.CSV] [-j] [-J] [-a] [-h]
 
 Collects useful information about given host's SSL certificates.
 
@@ -36,7 +36,8 @@ optional arguments:
   -c FILENAME.CSV, --csv FILENAME.CSV
                         Enable CSV file export
   -j, --json            Enable JSON in the output
-  -a, --analyze         Enable SSL security analysis on the host.
+  -J, --json-save       Enable JSON export individually per host
+  -a, --analyze         Enable SSL security analysis on the host
   -h, --help            Show this help message and exit
 ```
 
@@ -53,6 +54,8 @@ Port is optional here. The script will use 443 if not specified.
 `-c, --csv ` Enable CSV file export by specifying filename.csv after this argument
 
 `-j, --json ` Use this if you want to only have the result in JSON
+
+`-J, --json-save` Use this if you want to save as JSON file per host
 
 `-a, --analyze` This argument will include security analyze on the certificate. Takes more time. No result means failed to analyze. 
 

@@ -227,10 +227,12 @@ def show_result(user_args):
 
     # Enable JSON output if -j/--json argument specified
     if user_args.json_true:
+        print(json.dumps(context))
+
+    if user_args.json_save_true:
         for host in hosts:
-            with open(host.split(".")[0] + ".json", "w", encoding="UTF-8") as fp:
+            with open(host.split('.')[0] + '.json', 'w', encoding='UTF-8') as fp:
                 fp.write(json.dumps(context))
-            print(json.dumps(context))
 
 
 def export_csv(context, filename):
@@ -272,6 +274,9 @@ def get_args():
     parser.add_argument('-j', '--json', dest='json_true',
                         action='store_true', default=False,
                         help='Enable JSON in the output')
+    parser.add_argument('-J', '--json-save', dest='json_save_true',
+                        action='store_true', default=False,
+                        help='Enable JSON export individually per host')
     parser.add_argument('-a', '--analyze', dest='analyze',
                         default=False, action='store_true',
                         help='Enable SSL security analysis on the host')
