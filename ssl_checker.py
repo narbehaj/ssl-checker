@@ -232,7 +232,7 @@ def show_result(user_args):
     if user_args.json_save_true:
         for host in hosts:
             with open(host.split('.')[0] + '.json', 'w', encoding='UTF-8') as fp:
-                fp.write(json.dumps(context))
+                fp.write(json.dumps(context[host]))
 
 
 def export_csv(context, filename):
