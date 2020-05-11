@@ -39,3 +39,6 @@ jobs:
     - name: Test CSV output
       run: |
         python ssl_checker.py -H google.com -c test.csv
+    - name: Test JSON output
+      run: |
+        python ssl_checker.py -H google.com twitter.com -J
