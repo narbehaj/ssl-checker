@@ -3,9 +3,9 @@
 
 ## About
 
-It's a simple script running in python that collects SSL/TLS information then it returns the group of information in JSON. It can also connects trough your specified SOCKS server.
+It's a simple script running in python that collects SSL/TLS information then it returns the group of information in JSON. It can also connect through your specified SOCKS server.
 
-One of the good thing about this script, is that it will full analyze the SSL certificate for security issue's and will include the report in the output, CSV or JSON file.
+One of the good things about this script is that it will fully analyze the SSL certificate for security issues and will include the report in the output, CSV, or a JSON file.
 
 ## Requirements
 
