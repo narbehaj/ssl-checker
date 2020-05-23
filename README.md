@@ -1,11 +1,15 @@
 # SSL Checker
 #### Python script that collects SSL/TLS information from hosts
 
+
+
 ## About
 
 It's a simple script running in python that collects SSL/TLS information then it returns the group of information in JSON. It can also connect through your specified SOCKS server.
 
 One of the good things about this script is that it will fully analyze the SSL certificate for security issues and will include the report in the output, CSV, or a JSON file.
+
+
 
 ## Requirements
 
@@ -16,6 +20,8 @@ You only need to install pyOpenSSL:
 or
 
 `pip install -r requirements.txt`
+
+
 
 ## Usage
 
@@ -61,6 +67,8 @@ Port is optional here. The script will use 443 if not specified.
 
 `-h, --help`	Shows the help and exit
 
+
+
 ## Censored?
 
 No problem. Pass `-s/--socks` argument to the script with `HOST:PORT` format to connect through SOCKS proxy.
@@ -97,7 +105,6 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 +------------------------------------------------------+
 | Successful: 1 | Failed: 0 | Duration: 0:00:00.710470 |
 +------------------------------------------------------+
-
 ```
 
 
@@ -219,7 +226,17 @@ issuer_cn,Let's Encrypt Authority X3
 issuer_o,Let's Encrypt
 validity_days,90
 cert_sn,338163108483756707389368573553026254634358
+```
 
+
+
+# Docker
+
+If you want to run this script via docker, simply do create your image and run once:
+
+```
+$ docker build -t ssl-checker .
+$ docker run -it --rm ssl-checker -H twitter.com
 ```
 
 
@@ -231,7 +248,8 @@ cert_sn,338163108483756707389368573553026254634358
 - Make print_status cleaner and smarter
 
 
+
 ### Author
 
 Narbeh Arakil
-http://narbeh.org
+https://narbeh.org
