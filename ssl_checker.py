@@ -209,6 +209,10 @@ def show_result(user_args):
 
             if not user_args.json_true:
                 print_status(host, context, user_args.analyze)
+        except SSL.SysCallError:
+            if not user_args.json_true:
+                print('\t{}[-]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
+                failed_cnt += 1
         except Exception as error:
             if not user_args.json_true:
                 print('\t{}[-]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
