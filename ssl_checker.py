@@ -234,8 +234,8 @@ def show_result(user_args):
         print(json.dumps(context))
 
     if user_args.json_save_true:
-        for host in hosts:
-            with open(host.split('.')[0] + '.json', 'w', encoding='UTF-8') as fp:
+        for host in context.keys():
+            with open(host + '.json', 'w', encoding='UTF-8') as fp:
                 fp.write(json.dumps(context[host]))
 
 
