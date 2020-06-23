@@ -252,7 +252,7 @@ class SSLChecker:
 
         # CSV export if -c/--csv is specified
         if user_args.csv_enabled:
-            self.export_csv(context, user_args.csv_enabled)
+            self.export_csv(context, user_args.csv_enabled, user_args)
 
         # Enable JSON output if -j/--json argument specified
         if user_args.json_true:
@@ -264,7 +264,7 @@ class SSLChecker:
                     fp.write(json.dumps(context[host]))
 
 
-    def export_csv(self, context, filename):
+    def export_csv(self, context, filename, user_args):
         """Export all context results to CSV file."""
         # prepend dict keys to write column headers
         if user_args.verbose:
