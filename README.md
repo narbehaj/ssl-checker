@@ -28,7 +28,7 @@ or
 ```
 ./ssl_checker.py -h
 usage: ssl_checker.py (-H [HOSTS [HOSTS ...]] | -f HOST_FILE) [-s HOST:PORT]
-                      [-c FILENAME.CSV] [-j] [-J] [-a] [-h]
+                      [-c FILENAME.CSV] [-j] [-J] [-a] [-v] [-h]
 
 Collects useful information about given host's SSL certificates.
 
@@ -44,6 +44,7 @@ optional arguments:
   -j, --json            Enable JSON in the output
   -J, --json-save       Enable JSON export individually per host
   -a, --analyze         Enable SSL security analysis on the host
+  -v, --verbose         Enable verbose to see what is going on
   -h, --help            Show this help message and exit
 ```
 
@@ -64,6 +65,8 @@ Port is optional here. The script will use 443 if not specified.
 `-J, --json-save` Use this if you want to save as JSON file per host
 
 `-a, --analyze` This argument will include security analyze on the certificate. Takes more time. No result means failed to analyze. 
+
+`-v, --verbose` Shows more output. Good for troubleshooting.
 
 `-h, --help`	Shows the help and exit
 

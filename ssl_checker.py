@@ -31,9 +31,15 @@ class SSLChecker:
         """Connection to the host."""
         if user_args.socks:
             import socks
+            if user_args.verbose:
+                print('{}Socks proxy enabled{}\n'.format(Clr.YELLOW, Clr.RST))
+
             socks_host, socks_port = self.filter_hostname(user_args.socks)
             socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, socks_host, int(socks_port), True)
             socket.socket = socks.socksocket
+
+        if user_args.verbose:
+            print('{}Connecting to socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         osobj = SSL.Context(PROTOCOL_TLSv1)
@@ -44,6 +50,8 @@ class SSLChecker:
         oscon.do_handshake()
         cert = oscon.get_peer_certificate()
         sock.close()
+        if user_args.verbose:
+            print('{}Closing socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
         return cert
 
@@ -56,7 +64,7 @@ class SSLChecker:
         print(result)
 
 
-    def analyze_ssl(self, host, context):
+    def analyze_ssl(self, host, context, user_args):
         """Analyze the security of the SSL certificate."""
         try:
             from urllib.request import urlopen
@@ -65,15 +73,27 @@ class SSLChecker:
 
         api_url = 'https://api.ssllabs.com/api/v3/'
         while True:
+            if user_args.verbose:
+                print('{}Requesting analyze to {}{}\n'.format(Clr.YELLOW, api_url, Clr.RST))
+
             main_request = json.loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
             if main_request['status'] in ('DNS', 'IN_PROGRESS'):
+                if user_args.verbose:
+                    print('{}Analyze waiting for reports to be finished (5 secs){}\n'.format(Clr.YELLOW, Clr.RST))
+
                 sleep(5)
                 continue
             elif main_request['status'] == 'READY':
+                if user_args.verbose:
+                    print('{}Analyze is ready{}\n'.format(Clr.YELLOW, Clr.RST))
+
                 break
 
         endpoint_data = json.loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(
             host, main_request['endpoints'][0]['ipAddress'])).read().decode('utf-8'))
+
+        if user_args.verbose:
+            print('{}Analyze report message: {}{}\n'.format(Clr.YELLOW, endpoint_data['statusMessage'], Clr.RST))
 
         # if the certificate is invalid
         if endpoint_data['statusMessage'] == 'Certificate not valid for domain name':
@@ -162,7 +182,7 @@ class SSLChecker:
         print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
         print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
 
-        if analyze and context.get('grade', False):  # If analyze part fails
+        if analyze:
             print('\t\tCertificate grade: {}'.format(context[host]['grade']))
             print('\t\tPoodle vulnerability: {}'.format(context[host]['poodle_vuln']))
             print('\t\tHeartbleed vulnerability: {}'.format(context[host]['heartbleed_vuln']))
@@ -194,6 +214,9 @@ class SSLChecker:
             print('{}Warning: -a/--analyze is enabled. It takes more time...{}\n'.format(Clr.YELLOW, Clr.RST))
 
         for host in hosts:
+            if user_args.verbose:
+                print('{}Working on host: {}{}\n'.format(Clr.YELLOW, host, Clr.RST))
+
             host, port = self.filter_hostname(host)
 
             # Check duplication
@@ -207,7 +230,7 @@ class SSLChecker:
 
                 # Analyze the certificate if enabled
                 if user_args.analyze:
-                    context = self.analyze_ssl(host, context)
+                    context = self.analyze_ssl(host, context, user_args)
 
                 if not user_args.json_true:
                     self.print_status(host, context, user_args.analyze)
@@ -244,6 +267,9 @@ class SSLChecker:
     def export_csv(self, context, filename):
         """Export all context results to CSV file."""
         # prepend dict keys to write column headers
+        if user_args.verbose:
+            print('{}Generating CSV export{}\n'.format(Clr.YELLOW, Clr.RST))
+
         with open(filename, 'w') as csv_file:
             csv_writer = DictWriter(csv_file, list(context.items())[0][1].keys())
             csv_writer.writeheader()
@@ -286,6 +312,9 @@ class SSLChecker:
         parser.add_argument('-a', '--analyze', dest='analyze',
                             default=False, action='store_true',
                             help='Enable SSL security analysis on the host')
+        parser.add_argument('-v', '--verbose', dest='verbose',
+                            default=False, action='store_true',
+                            help='Enable verbose to see what is going on')
         parser.add_argument('-h', '--help', default=SUPPRESS,
                             action='help',
                             help='Show this help message and exit')
