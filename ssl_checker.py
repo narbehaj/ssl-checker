@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import socket
 import sys
 
@@ -328,7 +328,7 @@ class SSLChecker:
                             help='Enable JSON in the output')
         parser.add_argument('-S', '--summary', dest='summary_true',
                             action='store_true', default=False,
-                            help='Enable only summery output')
+                            help='Enable summary output only')
         parser.add_argument('-J', '--json-save', dest='json_save_true',
                             action='store_true', default=False,
                             help='Enable JSON export individually per host')
