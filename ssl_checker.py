@@ -27,6 +27,11 @@ class Clr:
 
 class SSLChecker:
 
+    total_valid = 0
+    total_expired = 0
+    total_failed = 0
+    total_warning = 0
+
     def get_cert(self, host, port, user_args):
         """Connection to the host."""
         if user_args.socks:
@@ -164,21 +169,31 @@ class SSLChecker:
         now = datetime.now()
         context['days_left'] = (valid_till - now).days
 
+        # Valid days left
+        context['valid_days_to_expire'] = (datetime.strptime(context['valid_till'],
+                                           '%Y-%m-%d') - datetime.now()).days
+
+        if cert.has_expired():
+            self.total_expired += 1
+        else:
+            self.total_valid += 1
+
+        if context['valid_days_to_expire'] <= 15:
+            self.total_warning += 1
+
         return context
 
 
     def print_status(self, host, context, analyze=False):
         """Print all the usefull info about host."""
-        days_left = (datetime.strptime(context[host]['valid_till'], '%Y-%m-%d') - datetime.now()).days
-
         print('\t{}[+]{} {}\n\t{}'.format(Clr.GREEN, Clr.RST, host, '-' * (len(host) + 5)))
         print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
         print('\t\tIssued to: {}'.format(context[host]['issued_o']))
         print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
         print('\t\tValid from: {}'.format(context[host]['valid_from']))
-        print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], days_left))
+        print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], context[host]['valid_days_to_expire']))
         print('\t\tValidity days: {}'.format(context[host]['validity_days']))
-        print('\t\tCertificate Valid: {}'.format(context[host]['cert_valid']))
+        print('\t\tCertificate valid: {}'.format(context[host]['cert_valid']))
         print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
         print('\t\tCertificate SHA1 FP: {}'.format(context[host]['cert_sha1']))
         print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
@@ -205,11 +220,10 @@ class SSLChecker:
     def show_result(self, user_args):
         """Get the context."""
         context = {}
-        failed_cnt = 0
         start_time = datetime.now()
         hosts = user_args.hosts
 
-        if not user_args.json_true:
+        if not user_args.json_true and not user_args.summary_true:
             self.border_msg(' Analyzing {} host(s) '.format(len(hosts)))
 
         if not user_args.json_true and user_args.analyze:
@@ -234,23 +248,27 @@ class SSLChecker:
                 if user_args.analyze:
                     context = self.analyze_ssl(host, context, user_args)
 
-                if not user_args.json_true:
+                if not user_args.json_true and not user_args.summary_true:
                     self.print_status(host, context, user_args.analyze)
             except SSL.SysCallError:
                 if not user_args.json_true:
                     print('\t{}[-]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
-                    failed_cnt += 1
+                    self.total_failed += 1
             except Exception as error:
                 if not user_args.json_true:
                     print('\t{}[-]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
-                    failed_cnt += 1
+                    self.total_failed += 1
             except KeyboardInterrupt:
                 print('{}Canceling script...{}\n'.format(Clr.YELLOW, Clr.RST))
                 sys.exit(1)
 
         if not user_args.json_true:
-            self.border_msg(' Successful: {} | Failed: {} | Duration: {} '.format(
-                len(hosts) - failed_cnt, failed_cnt, datetime.now() - start_time))
+            self.border_msg(' Successful: {} | Failed: {} | Valid: {} | Warning: {} | Expired: {} | Duration: {} '.format(
+                len(hosts) - self.total_failed, self.total_failed, self.total_valid,
+                self.total_warning, self.total_expired, datetime.now() - start_time))
+            if user_args.summary_true:
+                # Exit the script just
+                return
 
         # CSV export if -c/--csv is specified
         if user_args.csv_enabled:
@@ -308,6 +326,9 @@ class SSLChecker:
         parser.add_argument('-j', '--json', dest='json_true',
                             action='store_true', default=False,
                             help='Enable JSON in the output')
+        parser.add_argument('-S', '--summary', dest='summary_true',
+                            action='store_true', default=False,
+                            help='Enable only summery output')
         parser.add_argument('-J', '--json-save', dest='json_save_true',
                             action='store_true', default=False,
                             help='Enable JSON export individually per host')
