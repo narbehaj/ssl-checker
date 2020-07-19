@@ -145,6 +145,7 @@ class SSLChecker:
         context['cert_ver'] = cert.get_version()
         context['cert_sans'] = self.get_cert_sans(cert)
         context['cert_exp'] = cert.has_expired()
+        context['cert_valid'] = False if cert.has_expired() else True
 
         # Valid from
         valid_from = datetime.strptime(cert.get_notBefore().decode('ascii'),
@@ -177,6 +178,7 @@ class SSLChecker:
         print('\t\tValid from: {}'.format(context[host]['valid_from']))
         print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], days_left))
         print('\t\tValidity days: {}'.format(context[host]['validity_days']))
+        print('\t\tCertificate Valid: {}'.format(context[host]['cert_valid']))
         print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
         print('\t\tCertificate SHA1 FP: {}'.format(context[host]['cert_sha1']))
         print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
