@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 import socket
 import sys
+import json
 
 from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
 from ssl import PROTOCOL_TLSv1
 from time import sleep
 from csv import DictWriter
-import json
 
 try:
     from OpenSSL import SSL
+    from json2html import *
 except ImportError:
-    print('Required module does not exist. Install: pip install pyopenssl')
+    print('Please install required modules: pip install -r requirements.txt')
     sys.exit(1)
 
 
@@ -60,14 +61,12 @@ class SSLChecker:
 
         return cert
 
-
     def border_msg(self, message):
         """Print the message in the box."""
         row = len(message)
         h = ''.join(['+'] + ['-' * row] + ['+'])
         result = h + '\n' "|" + message + "|"'\n' + h
         print(result)
-
 
     def analyze_ssl(self, host, context, user_args):
         """Analyze the security of the SSL certificate."""
@@ -114,7 +113,6 @@ class SSLChecker:
 
         return context
 
-
     def get_cert_sans(self, x509cert):
         """
         Get Subject Alt Names from Certificate. Shameless taken from stack overflow:
@@ -129,7 +127,6 @@ class SSLChecker:
         # replace commas to not break csv output
         san = san.replace(',', ';')
         return san
-
 
     def get_cert_info(self, host, cert):
         """Get all the information about cert and create a JSON file."""
@@ -184,7 +181,6 @@ class SSLChecker:
 
         return context
 
-
     def print_status(self, host, context, analyze=False):
         """Print all the usefull info about host."""
         print('\t{}[+]{} {}\n\t{}'.format(Clr.GREEN, Clr.RST, host, '-' * (len(host) + 5)))
@@ -216,7 +212,6 @@ class SSLChecker:
             print('\t\t \\_ {}'.format(san.strip()))
 
         print('\n')
-
 
     def show_result(self, user_args):
         """Get the context."""
@@ -275,6 +270,10 @@ class SSLChecker:
         if user_args.csv_enabled:
             self.export_csv(context, user_args.csv_enabled, user_args)
 
+        # HTML export if -x/--html is specified
+        if user_args.html_true:
+            self.export_html(context)
+
         # Enable JSON output if -j/--json argument specified
         if user_args.json_true:
             print(json.dumps(context))
@@ -283,7 +282,6 @@ class SSLChecker:
             for host in context.keys():
                 with open(host + '.json', 'w', encoding='UTF-8') as fp:
                     fp.write(json.dumps(context[host]))
-
 
     def export_csv(self, context, filename, user_args):
         """Export all context results to CSV file."""
@@ -297,6 +295,14 @@ class SSLChecker:
             for host in context.keys():
                 csv_writer.writerow(context[host])
 
+    def export_html(self, context):
+        """Export JSON to HTML."""
+        html = json2html.convert(json=context)
+        file_name = datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M_%S')
+        with open('{}.html'.format(file_name), 'w') as html_file:
+            html_file.write(html)
+
+        return
 
     def filter_hostname(self, host):
         """Remove unused characters and split by address and port."""
@@ -306,7 +312,6 @@ class SSLChecker:
             host, port = host.split(':')
 
         return host, port
-
 
     def get_args(self):
         """Set argparse options."""
@@ -330,6 +335,9 @@ class SSLChecker:
         parser.add_argument('-S', '--summary', dest='summary_true',
                             action='store_true', default=False,
                             help='Enable summary output only')
+        parser.add_argument('-x', '--html', dest='html_true',
+                            action='store_true', default=False,
+                            help='Enable HTML file export')
         parser.add_argument('-J', '--json-save', dest='json_save_true',
                             action='store_true', default=False,
                             help='Enable JSON export individually per host')
@@ -357,6 +365,7 @@ class SSLChecker:
                 sys.exit(0)
 
         return args
+
 
 if __name__ == '__main__':
     SSLCheckerObject = SSLChecker()
