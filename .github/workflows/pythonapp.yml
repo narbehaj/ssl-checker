@@ -48,3 +48,6 @@ jobs:
     - name: Test summary output
       run: |
         python ssl_checker.py -H google.com -S
+    - name: Test HTML export
+      run: |
+        python ssl_checker.py -H google.com -x
