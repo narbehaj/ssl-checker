@@ -125,6 +125,8 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 +-------------------------------------------------------------------------------------------+
 ```
 
+NOTE: Keep in mind that if the certificate has less than 15 days validity, the script will consider it as a warning in the summary.
+
 
 
 ## Censored?
