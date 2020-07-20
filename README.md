@@ -7,17 +7,11 @@
 
 It's a simple script running in python that collects SSL/TLS information then it returns the group of information in JSON. It can also connect through your specified SOCKS server.
 
-One of the good things about this script is that it will fully analyze the SSL certificate for security issues and will include the report in the output, CSV, or a JSON file.
+One of the good things about this script is that it will fully analyze the SSL certificate for security issues and will include the report in the output, CSV, HTML, or a JSON file.
 
 
 
 ## Requirements
-
-You only need to install pyOpenSSL:
-
-`pip install pyopenssl`
-
-or
 
 `pip install -r requirements.txt`
 
@@ -28,7 +22,7 @@ or
 ```
 ./ssl_checker.py -h
 usage: ssl_checker.py (-H [HOSTS [HOSTS ...]] | -f HOST_FILE) [-s HOST:PORT]
-                      [-c FILENAME.CSV] [-j] [-S] [-J] [-a] [-v] [-h]
+                      [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-a] [-v] [-h]
 
 Collects useful information about given host's SSL certificates.
 
@@ -43,6 +37,7 @@ optional arguments:
                         Enable CSV file export
   -j, --json            Enable JSON in the output
   -S, --summary         Enable summary output only
+  -x, --html            Enable HTML file export
   -J, --json-save       Enable JSON export individually per host
   -a, --analyze         Enable SSL security analysis on the host
   -v, --verbose         Enable verbose to see what is going on
@@ -64,6 +59,8 @@ Port is optional here. The script will use 443 if not specified.
 `-j, --json ` Use this if you want to only have the result in JSON
 
 `-S, --summary ` This argument will show quick summary in the output
+
+`-x, --html ` Enable HTML file export
 
 `-J, --json-save` Use this if you want to save as JSON file per host
 
@@ -236,7 +233,7 @@ Warning: -a/--analyze is enabled. It takes more time...
 
 
 
-## JSON And CSV Output
+## JSON, HTML and CSV Output
 
 Example only with the `-j/--json` argument which shows the JSON only. Perfect for piping to another tool.
 
@@ -293,7 +290,6 @@ $ docker run -it --rm ssl-checker -H twitter.com
 ## Todo
 
 - Enable timeout for connections and handshakes
-- HTML export ability
 - Make print_status cleaner and smarter
 
 
