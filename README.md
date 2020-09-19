@@ -271,7 +271,13 @@ Simply import the `ssl_checker.py` into your python script and use it as a modul
 
 ```
 from ssl_checker import SSLChecker
-SSLCheckerObject = SSLChecker()  
+
+SSLChecker = SSLChecker()
+args = {
+    'hosts': ['google.com', 'cisco.com']
+}
+
+SSLChecker.show_result(SSLChecker.get_args(json_args=args))
 ```
 
 

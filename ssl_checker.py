@@ -313,10 +313,22 @@ class SSLChecker:
 
         return host, port
 
-    def get_args(self):
+    def get_args(self, json_args={}):
         """Set argparse options."""
         parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
                                 description="""Collects useful information about given host's SSL certificates.""")
+
+        if len(json_args) > 0:
+            args = parser.parse_args()
+            setattr(args, 'json_true', True)
+            setattr(args, 'verbose', False)
+            setattr(args, 'csv_enabled', False)
+            setattr(args, 'html_true', False)
+            setattr(args, 'json_save_true', False)
+            setattr(args, 'socks', False)
+            setattr(args, 'analyze', False)
+            setattr(args, 'hosts', json_args['hosts'])
+            return args
 
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('-H', '--host', dest='hosts', nargs='*',
@@ -369,4 +381,4 @@ class SSLChecker:
 
 if __name__ == '__main__':
     SSLCheckerObject = SSLChecker()
-    SSLCheckerObject.show_result(SSLCheckerObject.get_args())
+    SSLCheckerObject.show_result(SSLCheckerObject.get_args(json_args={}))
