@@ -1,3 +1,4 @@
+#test
 """SocksiPy - Python SOCKS module.
 
 Copyright 2006 Dan-Haim. All rights reserved.
