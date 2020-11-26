@@ -18,16 +18,15 @@ jobs:
 workflows:
   version: 2
   backup:
-    triggers:
-      - schedule:
-          cron: "0 22 * * 1"
-          filters:
-            branches:
-              only:
-                - master
+    # triggers:
+    #   - schedule:
+    #       cron: "0 22 * * 1"
+    #       filters:
+    #         branches:
+    #           only:
+    #             - master
     jobs:
       - backup:
-          context: github-backup
           filters:
             branches:
               only: master
