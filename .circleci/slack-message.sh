@@ -1,7 +1,4 @@
 #!/bin/sh
-
-set -xue
-
 DEFAULT_TEXT=$1
 DEPLOY_ENV=${2:-DEV}
 VERSION_NUMBER=$3

@@ -12,7 +12,10 @@ jobs:
             DATE=`date "+%Y%m%d-%H%M"`
             .circleci/slack-message.sh "*Checking SSL Certificates*: Begin" "MASTER" $DATE "#ffff00"
             sudo pip install -r requirements.txt
-            ./ssl_checker.py -f ./hosts_to_check
+            OUTPUT=$(./ssl_checker.py -f ./hosts_to_check)
+            echo $OUTPUT
+            echo $OUTPUT | grep "Warning: 0"
+            echo $OUTPUT | grep "Expired: 0"
             .circleci/slack-message.sh "*Checked SSL Certificates*: Finished :key:" "MASTER" $DATE "#008000"
 
 workflows:

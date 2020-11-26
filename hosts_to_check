@@ -15,3 +15,6 @@ scraper.dev.rivalbet.com.au
 scraper.prod.rivalbet.com.au
 rivaltar.prod.rivalbet.com.au
 rivaltar.dev.rivalbet.com.au
+expired.badssl.com
+self-signed.badssl.com
+revoked.badssl.com
