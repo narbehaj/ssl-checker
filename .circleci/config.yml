@@ -17,11 +17,11 @@ jobs:
             echo "$OUTPUT"
             if ! [[ echo "$OUTPUT" | grep "Expired: 0" ]]; then
               .circleci/slack-message.sh "*Checked SSL Certificates*: Expired :x:" "#FF0000"
-            elif ! [[ echo "$OUTPUT" | grep "Warning: 0" ]]; then
-              .circleci/slack-message.sh "*Checked SSL Certificates*: Warnings :warning:" "#FF0000"
-            else
-              .circleci/slack-message.sh "*Checked SSL Certificates*: Success :key:" "#008000"
             fi
+            if ! [[ echo "$OUTPUT" | grep "Warning: 0" ]]; then
+              .circleci/slack-message.sh "*Checked SSL Certificates*: Warnings :warning:" "#FF0000"
+            fi
+            .circleci/slack-message.sh "*Checked SSL Certificates*: Success :key:" "#008000"
 
 workflows:
   version: 2
