@@ -11,7 +11,7 @@ jobs:
           command: |
             DATE=`date "+%Y%m%d-%H%M"`
             .circleci/slack-message.sh "*Checking SSL Certificates*: Begin" "MASTER" $DATE "#ffff00"
-            pip install -r requirements.txt
+            sudo pip install -r requirements.txt
             ./ssl_checker.py -f /data/hosts_to_check
             .circleci/slack-message.sh "*Checked SSL Certificates*: Finished :key:" "MASTER" $DATE "#008000"
 
@@ -28,7 +28,7 @@ workflows:
   sslcheck-on-schedule:
     triggers:
       - schedule:
-          cron: "0 22 * * 1"
+          cron: "0 22 * * *"
           filters:
             branches:
               only:
