@@ -176,7 +176,7 @@ class SSLChecker:
             self.total_valid += 1
 
         # If the certificate has less than 15 days validity
-        if context['valid_days_to_expire'] <= 15:
+        if context['valid_days_to_expire'] <= 400:
             self.total_warning += 1
 
         return context
