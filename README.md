@@ -16,6 +16,13 @@ One of the good things about this script is that it will fully analyze the SSL c
 `pip install -r requirements.txt`
 
 
+## Hosts to Check
+
+This tool is configured to run in CircleCI every day:
+
+https://app.circleci.com/pipelines/github/apthletic/ssl-checker?branch=master
+
+It runs the check on each host in the `hosts_to_check` file. Please add more lines in there in order to check for more certificates.
 
 ## Usage
 
