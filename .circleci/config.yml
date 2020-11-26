@@ -11,7 +11,7 @@ jobs:
           command: |
             .circleci/slack-message.sh "*Checking SSL Certificates*" "#FFF000"
             sudo pip install -r requirements.txt
-            OUTPUT=$(./ssl_checker.py -a -f ./hosts_to_check)
+            OUTPUT=$(./ssl_checker.py -f ./hosts_to_check)
             echo "$OUTPUT"
             if ! echo "$OUTPUT" | grep "Expired: 0" ; then
               .circleci/slack-message.sh "*Checked SSL Certificates*: Expired :x:" "#FF0000"
