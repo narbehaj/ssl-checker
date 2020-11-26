@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  backup:
+  sslcheck:
     docker:
       - image: circleci/python:3.8.0-node
     working_directory: ~/repo
@@ -11,22 +11,32 @@ jobs:
           command: |
             DATE=`date "+%Y%m%d-%H%M"`
             .circleci/slack-message.sh "*Checking SSL Certificates*: Begin" "MASTER" $DATE "#ffff00"
-            docker build -t ssl-checker .
-            docker run -it --rm -v $(pwd):/data ssl-checker -f /data/hosts_to_check
+            pip install -r requirements.txt
+            ./ssl_checker.py -f /data/hosts_to_check
             .circleci/slack-message.sh "*Checked SSL Certificates*: Finished :key:" "MASTER" $DATE "#008000"
 
 workflows:
   version: 2
-  backup:
-    # triggers:
-    #   - schedule:
-    #       cron: "0 22 * * 1"
-    #       filters:
-    #         branches:
-    #           only:
-    #             - master
+  sslcheck-on-push:
     jobs:
-      - backup:
+      - sslcheck:
+        #TODO: Change context
+          context: github-backup
+          filters:
+            branches:
+              only: master
+  sslcheck-on-schedule:
+    triggers:
+      - schedule:
+          cron: "0 22 * * 1"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - sslcheck:
+        #TODO: Change context
+          context: github-backup
           filters:
             branches:
               only: master
