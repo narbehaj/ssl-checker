@@ -1,8 +1,6 @@
 #!/bin/sh
 DEFAULT_TEXT=$1
-DEPLOY_ENV=${2:-DEV}
-VERSION_NUMBER=$3
-COLOR=$4
+COLOR=$2
 
 COMMIT_MSG="$(git rev-list --format=%B --max-count=1 $CIRCLE_SHA1)"
 TS=$(date +"%s")
@@ -10,10 +8,6 @@ TS=$(date +"%s")
 SLACK_MESSAGE='{
   "text": "'$DEFAULT_TEXT'",
   "attachments": [
-    {
-      "text":"*Version:* '$VERSION_NUMBER'\n*Environment:* '$DEPLOY_ENV'",
-      "color":"'$COLOR'"
-    },
     {
       "title": "Commits",
       "color":"'$COLOR'",
