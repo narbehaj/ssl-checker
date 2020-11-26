@@ -9,8 +9,6 @@ jobs:
       - run:
           name: Check SSL Certificates
           command: |
-            set -e
-            set -x
             DATE=`date "+%Y%m%d-%H%M"`
             sudo pip install -r requirements.txt
             OUTPUT=$(./ssl_checker.py -f ./hosts_to_check)
