@@ -5,6 +5,7 @@ android.rivalbet.com.au
 mobile-web.rivalbet.com.au
 app.rivalbet.com.au
 app.dev.rivalbet.com.au
+app.prod.rivalbet.com.au
 get.dev.rivalbet.com.au
 ios.dev.rivalbet.com.au
 android.dev.rivalbet.com.au
@@ -19,3 +20,7 @@ support.rivalbet.com.au
 www.rivalbet.com.au
 apthletic.com
 apthletic.com.au
+audit-dashboard.rivalbet.com.au
+www.apthletic-test.com
+events.dev.rivalbet.com.au
+events.prod.rivalbet.com.au
