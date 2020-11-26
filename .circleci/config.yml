@@ -10,13 +10,16 @@ jobs:
           name: Check SSL Certificates
           command: |
             DATE=`date "+%Y%m%d-%H%M"`
-            .circleci/slack-message.sh "*Checking SSL Certificates*: Begin" "MASTER" $DATE "#ffff00"
             sudo pip install -r requirements.txt
             OUTPUT=$(./ssl_checker.py -f ./hosts_to_check)
             echo "$OUTPUT"
-            echo "$OUTPUT" | grep "Warning: 0"
-            echo "$OUTPUT" | grep "Expired: 0"
-            .circleci/slack-message.sh "*Checked SSL Certificates*: Finished :key:" "MASTER" $DATE "#008000"
+            if ! [[echo "$OUTPUT" | grep "Warning: 0"]]; then
+              .circleci/slack-message.sh "*Checked SSL Certificates*: Warnings :warning:" "MASTER" $DATE "#FFFF00"
+            fi
+            if ! [[echo "$OUTPUT" | grep "Expired: 0"]]; then
+              .circleci/slack-message.sh "*Checked SSL Certificates*: Expired :x:" "MASTER" $DATE "#FF0000"
+            fi
+            .circleci/slack-message.sh "*Checked SSL Certificates*: Success :key:" "MASTER" $DATE "#008000"
 
 workflows:
   version: 2
