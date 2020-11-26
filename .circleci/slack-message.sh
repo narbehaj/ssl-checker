@@ -1,4 +1,6 @@
 #!/bin/sh
+set -x
+set -u
 DEFAULT_TEXT=$1
 COLOR=$2
 
