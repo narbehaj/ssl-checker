@@ -274,6 +274,10 @@ class SSLChecker:
         if user_args.html_true:
             self.export_html(context)
 
+        # While using the script as a module
+        if __name__ != '__main__':
+            return json.dumps(context)
+
         # Enable JSON output if -j/--json argument specified
         if user_args.json_true:
             print(json.dumps(context))
