@@ -284,6 +284,14 @@ SSLChecker.show_result(SSLChecker.get_args(json_args=args))
 
 # Docker
 
+##### From the Docker Hub
+
+```
+$ docker run -it --rm narbehaj/ssl-checker -H twitter.com
+```
+
+##### Build your own Dockerfile
+
 If you want to run this script via docker, simply do create your image and run once:
 
 ```
