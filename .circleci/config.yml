@@ -16,6 +16,9 @@ jobs:
             if ! echo "$OUTPUT" | grep "Expired: 0" ; then
               .circleci/slack-message.sh "*Checked SSL Certificates*: Expired :x:" "#FF0000"
             fi
+            if ! echo "$OUTPUT" | grep "Failed: 0" ; then
+              .circleci/slack-message.sh "*Checked SSL Certificates*: Failed :x:" "#FF0000"
+            fi
             if ! echo "$OUTPUT" | grep "Warning: 0" ; then
               .circleci/slack-message.sh "*Checked SSL Certificates*: Warnings :warning:" "#FF0000"
             fi
