@@ -46,7 +46,7 @@ workflows:
           context: github-backup
           filters:
             branches:
-              only: apthletic/ssl-checker/issues/3
+              only: master
   sslcheck-on-schedule:
     triggers:
       - schedule:
