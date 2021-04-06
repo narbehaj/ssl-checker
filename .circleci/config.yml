@@ -13,7 +13,7 @@ jobs:
             echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 trusty main" > /tmp/openvpn-aptrepo.list
             sudo mv /tmp/openvpn-aptrepo.list /etc/apt/sources.list.d/openvpn-aptrepo.list
             sudo apt-get update
-            sudo apt-get install openvpn python3
+            sudo apt-get install openvpn python3 python3-setuptools
             echo "${VPN_CONF_BASE64}" | base64 -d > /tmp/openvpn.conf
             sudo mv /tmp/openvpn.conf /etc/openvpn/vpn.conf
             sudo openvpn --daemon --config /etc/openvpn/vpn.conf
