@@ -2,7 +2,7 @@ version: 2
 jobs:
   sslcheck:
     machine:
-      image: ubuntu-2004:202010-01
+      image: circleci/classic:latest
     working_directory: ~/repo
     steps:
       - checkout
@@ -13,7 +13,7 @@ jobs:
             echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 trusty main" > /tmp/openvpn-aptrepo.list
             sudo mv /tmp/openvpn-aptrepo.list /etc/apt/sources.list.d/openvpn-aptrepo.list
             sudo apt-get update
-            sudo apt-get install openvpn python3 python3-setuptools
+            sudo apt-get install openvpn 
             echo "${VPN_CONF_BASE64}" | base64 -d > /tmp/openvpn.conf
             sudo mv /tmp/openvpn.conf /etc/openvpn/vpn.conf
             sudo openvpn --daemon --config /etc/openvpn/vpn.conf
@@ -22,9 +22,7 @@ jobs:
           name: Check SSL Certificates
           command: |
             .circleci/slack-message.sh "*Checking SSL Certificates*" "#FFF000"
-            pip install -r requirements.txt
-            pip install --upgrade setuptools
-            OUTPUT=$(./ssl_checker.py -f ./hosts_to_check)
+            OUTPUT=$(docker run apthletic/ssl-checker:1 -f ./hosts_to_check)
             echo "$OUTPUT"
             if ! echo "$OUTPUT" | grep "Expired: 0" ; then
               .circleci/slack-message.sh "*Checked SSL Certificates*: Expired :x:" "#FF0000"
