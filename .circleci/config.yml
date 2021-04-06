@@ -2,7 +2,7 @@ version: 2
 jobs:
   sslcheck:
     machine:
-      image: circleci/classic:latest
+      image: ubuntu-2004:202010-01
     working_directory: ~/repo
     steps:
       - checkout
