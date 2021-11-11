@@ -22,6 +22,7 @@ jobs:
           name: Check SSL Certificates
           command: |
             .circleci/slack-message.sh "*Checking SSL Certificates*" "#FFF000"
+            docker build . -t apthletic/ssl-checker:1
             OUTPUT=$(docker run apthletic/ssl-checker:1 -f ./hosts_to_check)
             echo "$OUTPUT"
             if ! echo "$OUTPUT" | grep "Expired: 0" ; then
