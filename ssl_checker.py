@@ -5,7 +5,6 @@ import json
 
 from argparse import ArgumentParser, SUPPRESS
 from datetime import datetime
-from ssl import PROTOCOL_TLSv1
 from time import sleep
 from csv import DictWriter
 
@@ -48,7 +47,7 @@ class SSLChecker:
             print('{}Connecting to socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        osobj = SSL.Context(PROTOCOL_TLSv1)
+        osobj = SSL.Context(SSL.TLSv1_2_METHOD)
         sock.connect((host, int(port)))
         oscon = SSL.Connection(osobj, sock)
         oscon.set_tlsext_host_name(host.encode())
