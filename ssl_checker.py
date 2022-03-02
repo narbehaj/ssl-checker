@@ -373,7 +373,7 @@ class SSLChecker:
                             default=False, action='store_true',
                             help='Enable SSL security analysis on the host')
         parser.add_argument('-t', '--timeout', dest='timeout',
-                            default=False, actin='store_true',
+                            default=False, action='store_true',
                             help='Enable timeout on the SSL connection.')
         parser.add_argument('-v', '--verbose', dest='verbose',
                             default=False, action='store_true',
