@@ -48,14 +48,21 @@ class SSLChecker:
             print('{}Connecting to socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        osobj = SSL.Context(PROTOCOL_TLSv1)
-        sock.connect((host, int(port)))
-        oscon = SSL.Connection(osobj, sock)
-        oscon.set_tlsext_host_name(host.encode())
-        oscon.set_connect_state()
-        oscon.do_handshake()
-        cert = oscon.get_peer_certificate()
-        sock.close()
+        if user_args.timeout != False:
+            sock.settimeout(user_args.timeout)
+        try:
+            osobj = SSL.Context(PROTOCOL_TLSv1)
+            sock.connect((host, int(port)))
+            oscon = SSL.Connection(osobj, sock)
+            oscon.set_tlsext_host_name(host.encode())
+            oscon.set_connect_state()
+            oscon.setblocking(1)
+            oscon.do_handshake()
+            cert = oscon.get_peer_certificate()
+        except socket.timeout as e:
+            raise e
+        finally:
+            sock.close()
         if user_args.verbose:
             print('{}Closing socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
@@ -250,6 +257,10 @@ class SSLChecker:
                 if not user_args.json_true:
                     print('\t{}[-]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
                     self.total_failed += 1
+            except socket.timeout:
+                if not user_args.json_true:
+                    print('\t{}[-]{} {:<20s} Timeout: {}\n'.format(Clr.RED, Clr.RST, host, error))
+                    self.total_failed += 1
             except Exception as error:
                 if not user_args.json_true:
                     print('\t{}[-]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
@@ -332,6 +343,7 @@ class SSLChecker:
             setattr(args, 'socks', False)
             setattr(args, 'analyze', False)
             setattr(args, 'hosts', json_args['hosts'])
+            setattr(args, 'timeout', json_args.get('timeout', False))
             return args
 
         group = parser.add_mutually_exclusive_group(required=True)
@@ -360,6 +372,9 @@ class SSLChecker:
         parser.add_argument('-a', '--analyze', dest='analyze',
                             default=False, action='store_true',
                             help='Enable SSL security analysis on the host')
+        parser.add_argument('-t', '--timeout', dest='timeout',
+                            default=False, actin='store_true',
+                            help='Enable timeout on the SSL connection.')
         parser.add_argument('-v', '--verbose', dest='verbose',
                             default=False, action='store_true',
                             help='Enable verbose to see what is going on')
