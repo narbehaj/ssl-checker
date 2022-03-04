@@ -257,7 +257,7 @@ class SSLChecker:
                 if not user_args.json_true:
                     print('\t{}[-]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
                     self.total_failed += 1
-            except socket.timeout:
+            except socket.timeout as error:
                 if not user_args.json_true:
                     print('\t{}[-]{} {:<20s} Timeout: {}\n'.format(Clr.RED, Clr.RST, host, error))
                     self.total_failed += 1
@@ -373,7 +373,7 @@ class SSLChecker:
                             default=False, action='store_true',
                             help='Enable SSL security analysis on the host')
         parser.add_argument('-t', '--timeout', dest='timeout',
-                            default=False, action='store_true',
+                            default=False, type=float,
                             help='Enable timeout on the SSL connection.')
         parser.add_argument('-v', '--verbose', dest='verbose',
                             default=False, action='store_true',
