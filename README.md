@@ -305,4 +305,5 @@ $ docker run -it --rm ssl-checker -H twitter.com
 
 - Enable timeout for connections and handshakes
 - Make print_status cleaner and smarter
+- Add certificate chain validation
 
