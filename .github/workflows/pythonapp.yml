@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -34,7 +34,7 @@ jobs:
     - name: Test JSON output
       run: |
         python ssl_checker.py -H google.com -j
-    - nane: Test read list from file
+    - name: Test read list from file
       run: |
         echo "google.com\ntwitter.com" > list
         python ssl_checker.py -f list
