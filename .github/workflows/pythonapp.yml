@@ -58,7 +58,6 @@ jobs:
       - name: Login to image repository
         uses: docker/login-action@v2
         with:
-          registry: hub.docker.com
           username: ${{ secrets.USER }}
           password: ${{ secrets.PASS }}
 
