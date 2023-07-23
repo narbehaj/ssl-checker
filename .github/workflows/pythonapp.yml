@@ -34,6 +34,10 @@ jobs:
     - name: Test JSON output
       run: |
         python ssl_checker.py -H google.com -j
+    - nane: Test read list from file
+      run: |
+        echo "google.com\ntwitter.com" > list
+        python ssl_checker.py -f list
     - name: Test CSV output
       run: |
         python ssl_checker.py -H google.com -c test.csv
