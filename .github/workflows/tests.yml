@@ -37,7 +37,7 @@ jobs:
         python ssl_checker.py -H google.com -j
     - name: Test read list from file
       run: |
-        echo "google.com\ntwitter.com" > list
+        echo -e "google.com\ntwitter.com" > list
         python ssl_checker.py -f list
     - name: Test CSV output
       run: |
