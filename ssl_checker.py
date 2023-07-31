@@ -205,7 +205,7 @@ class SSLChecker:
             print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
 
         print('\t\tExpired: {}'.format(context[host]['cert_exp']))
-        print('\t\tCertificate SAN\'s: ')
+        print('\t\tCertificate SANs: ')
 
         for san in context[host]['cert_sans'].split(';'):
             print('\t\t \\_ {}'.format(san.strip()))
@@ -319,7 +319,7 @@ class SSLChecker:
     def get_args(self, json_args={}):
         """Set argparse options."""
         parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
-                                description="""Collects useful information about given host's SSL certificates.""")
+                                description="""Collects useful information about the given host's SSL certificates.""")
 
         if len(json_args) > 0:
             args = parser.parse_args()
@@ -337,7 +337,7 @@ class SSLChecker:
         group.add_argument('-H', '--host', dest='hosts', nargs='*',
                            required=False, help='Hosts as input separated by space')
         group.add_argument('-f', '--host-file', dest='host_file',
-                           required=False, help='Hosts as input from file')
+                           required=False, help='Hosts as input from a file')
         parser.add_argument('-s', '--socks', dest='socks',
                             default=False, metavar='HOST:PORT',
                             help='Enable SOCKS proxy for connection')
