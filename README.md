@@ -218,7 +218,7 @@ Warning: -a/--analyze is enabled. It takes more time...
 		Certificate grade: A
 		Poodle vulnerability: False
 		Heartbleed vulnerability: False
-		Hearbeat vulnerability: True
+		Heartbeat vulnerability: True
 		Freak vulnerability: False
 		Logjam vulnerability: False
 		Drown vulnerability: False
