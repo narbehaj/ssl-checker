@@ -19,18 +19,18 @@ One of the good things about this script is that it will fully analyze the SSL c
 
 ## Usage
 
-```shell
+```
 ./ssl_checker.py -h
 usage: ssl_checker.py (-H [HOSTS [HOSTS ...]] | -f HOST_FILE) [-s HOST:PORT]
                       [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-a] [-v] [-h]
 
-Collects useful information about given host's SSL certificates.
+Collects useful information about the given host's SSL certificates.
 
 optional arguments:
   -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
                         Hosts as input separated by space
   -f HOST_FILE, --host-file HOST_FILE
-                        Hosts as input from file
+                        Hosts as input from a file
   -s HOST:PORT, --socks HOST:PORT
                         Enable SOCKS proxy for connection
   -c FILENAME.CSV, --csv FILENAME.CSV
@@ -73,7 +73,7 @@ The port is optional here. The script will use 443 if not specified.
 
 ## Example
 
-```shell
+```
 narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 +---------------------+
 | Analyzing 2 host(s) |
@@ -92,7 +92,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
-		Certificate SAN's: 
+		Certificate SANs: 
 		 \_ DNS:time.com
 		 \_ DNS:*.time.com
 
@@ -111,7 +111,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
-		Certificate SAN's: 
+		Certificate SANs: 
 		 \_ DNS:github.com
 		 \_ DNS:www.github.com
 
@@ -129,7 +129,7 @@ NOTE: Keep in mind that if the certificate has less than 15 days of validity, th
 
 No problem. Pass `-s/--socks` argument to the script with `HOST:PORT` format to connect through the SOCKS proxy.
 
-```shell
+```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com
 +-------------------+
 |Analyzing 1 host(s)|
@@ -159,7 +159,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption
 		Expired: False
-		Certificate SAN's: 
+		Certificate SANs: 
 		 \_ DNS:*.facebook.com
 		 \_ DNS:*.facebook.net
 		 \_ DNS:*.fbcdn.net
@@ -179,12 +179,11 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 ```
 
 
-
 ## Quick Summary
 
 Sometimes you need to run the script and get a quick summary of the hosts. By passing `-S/--summary` you will get a quick overview of the result.
 
-```shell
+```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org:443 test.com twitter.com -S
 +-------------------------------------------------------------------------------------------+
 | Successful: 3 | Failed: 0 | Valid: 3 | Warning: 0 | Expired: 0 | Duration: 0:00:01.958670 |
@@ -196,7 +195,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org:443 test.com twi
 
 By passing `-a/--analyze` to the script, it will scan the certificate for security issues and vulnerabilities. It will also mark a grade for the certificate. **This will take more time to finish.**
 
-```shell
+```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org:443 -a
 +---------------------+
 | Analyzing 1 host(s) |
@@ -235,7 +234,7 @@ Warning: -a/--analyze is enabled. It takes more time...
 
 Example only with the `-j/--json` argument which shows the JSON only. Perfect for piping to another tool.
 
-```shell
+```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -j -H narbeh.org:443
 {"narbeh.org": {"host": "narbeh.org", "issued_to": "sni.cloudflaressl.com", "issued_o": "Cloudflare, Inc.", "issuer_c": "US", "issuer_o": "CloudFlare, Inc.", "issuer_ou": null, "issuer_cn": "CloudFlare Inc ECC CA-2", "cert_sn": "20958932659753030511717961095784314907", "cert_sha1": "FC:2D:0E:FD:DE:C0:98:7D:23:D2:E7:14:4C:07:6A:3D:25:25:49:B6", "cert_alg": "ecdsa-with-SHA256", "cert_ver": 2, "cert_sans": "DNS:sni.cloudflaressl.com; DNS:narbeh.org; DNS:*.narbeh.org", "cert_exp": false, "cert_valid": true, "valid_from": "2020-04-02", "valid_till": "2020-10-09", "validity_days": 190, "days_left": 81, "valid_days_to_expire": 81, "tcp_port": 443}}
 ```
