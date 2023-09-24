@@ -78,7 +78,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 +---------------------+
 | Analyzing 2 host(s) |
 +---------------------+
-	[+] time.com
+	[✓] time.com
 	-------------
 		Issued domain: time.com
 		Issued to: None
@@ -97,7 +97,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 		 \_ DNS:*.time.com
 
 
-	[+] github.com
+	[✓] github.com
 	---------------
 		Issued domain: github.com
 		Issued to: GitHub, Inc.
@@ -135,7 +135,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com
 |Analyzing 1 host(s)|
 +-------------------+
 
-	[-] facebook.com         Failed: [Errno 111] Connection refused
+	[✗] facebook.com         Failed: [Errno 111] Connection refused
 
 +-------------------------------------------------------------------------------------------+
 | Successful: 0 | Failed: 1 | Valid: 0 | Warning: 0 | Expired: 0 | Duration: 0:00:04.109058 |
@@ -145,7 +145,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 +---------------------+
 | Analyzing 1 host(s) |
 +---------------------+
-	[+] facebook.com
+	[✓] facebook.com
 	-----------------
 		Issued domain: *.facebook.com
 		Issued to: Facebook, Inc.
@@ -203,7 +203,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org:443 -a
 
 Warning: -a/--analyze is enabled. It takes more time...
 
-	[+] narbeh.org
+	[✓] narbeh.org
 
 		Issued domain: narbeh.org
 		Issued to: None
