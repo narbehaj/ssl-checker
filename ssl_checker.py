@@ -182,7 +182,7 @@ class SSLChecker:
 
     def print_status(self, host, context, analyze=False):
         """Print all the usefull info about host."""
-        print('\t{}[+]{} {}\n\t{}'.format(Clr.GREEN if context[host]['cert_valid'] else Clr.RED, Clr.RST, host, '-' * (len(host) + 5)))
+        print('\t{}[\u2713]{} {}\n\t{}'.format(Clr.GREEN if context[host]['cert_valid'] else Clr.RED, Clr.RST, host, '-' * (len(host) + 5)))
         print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
         print('\t\tIssued to: {}'.format(context[host]['issued_o']))
         print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
@@ -247,11 +247,11 @@ class SSLChecker:
                     self.print_status(host, context, user_args.analyze)
             except SSL.SysCallError:
                 if not user_args.json_true:
-                    print('\t{}[-]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
+                    print('\t{}[\u2717]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
                     self.total_failed += 1
             except Exception as error:
                 if not user_args.json_true:
-                    print('\t{}[-]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
+                    print('\t{}[\u2717]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
                     self.total_failed += 1
             except KeyboardInterrupt:
                 print('{}Canceling script...{}\n'.format(Clr.YELLOW, Clr.RST))
