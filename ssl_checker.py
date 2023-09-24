@@ -182,7 +182,7 @@ class SSLChecker:
 
     def print_status(self, host, context, analyze=False):
         """Print all the usefull info about host."""
-        print('\t{}[+]{} {}\n\t{}'.format(Clr.GREEN, Clr.RST, host, '-' * (len(host) + 5)))
+        print('\t{}[+]{} {}\n\t{}'.format(Clr.GREEN if context[host]['cert_valid'] else Clr.RED, Clr.RST, host, '-' * (len(host) + 5)))
         print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
         print('\t\tIssued to: {}'.format(context[host]['issued_o']))
         print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
