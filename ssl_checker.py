@@ -32,19 +32,13 @@ class SSLChecker:
     total_failed = 0
     total_warning = 0
 
-    def get_cert(self, host, port, user_args):
+    def get_cert(self, host, port, socks_host=None, socks_port=None):
         """Connection to the host."""
-        if user_args.socks:
+        if socks_host:
             import socks
-            if user_args.verbose:
-                print('{}Socks proxy enabled{}\n'.format(Clr.YELLOW, Clr.RST))
 
-            socks_host, socks_port = self.filter_hostname(user_args.socks)
             socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, socks_host, int(socks_port), True)
             socket.socket = socks.socksocket
-
-        if user_args.verbose:
-            print('{}Connecting to socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         osobj = SSL.Context(SSL.TLSv1_2_METHOD)
@@ -55,8 +49,6 @@ class SSLChecker:
         oscon.do_handshake()
         cert = oscon.get_peer_certificate()
         sock.close()
-        if user_args.verbose:
-            print('{}Closing socket{}\n'.format(Clr.YELLOW, Clr.RST))
 
         return cert
 
@@ -235,7 +227,16 @@ class SSLChecker:
                 continue
 
             try:
-                cert = self.get_cert(host, port, user_args)
+                # Check if socks should be used
+                if user_args.socks:
+                    if user_args.verbose:
+                        print('{}Socks proxy enabled, connecting via proxy{}\n'.format(Clr.YELLOW, Clr.RST))
+
+                    socks_host, socks_port = self.filter_hostname(user_args.socks)
+                    cert = self.get_cert(host, port, socks_host, socks_port)
+                else:
+                    cert = self.get_cert(host, port)
+
                 context[host] = self.get_cert_info(host, cert)
                 context[host]['tcp_port'] = int(port)
 
