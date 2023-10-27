@@ -10,6 +10,12 @@ It's a simple script running in Python that collects SSL/TLS information and the
 One of the good things about this script is that it will fully analyze the SSL certificate for security issues and include the report in the output, CSV, HTML, or JSON file.
 
 
+## Online API Based Version
+
+You can simply go to [https://ssl-checker.io](https://ssl-checker.io) or use the following curl command:
+
+`curl https://ssl-checker.io/api/v1/check/example.com`
+
 
 ## Requirements
 
@@ -181,7 +187,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 
 ## Quick Summary
 
-Sometimes you need to run the script and get a quick summary of the hosts. By passing `-S/--summary` you will get a quick overview of the result.
+Sometimes you need to run the script and get a quick summary of the hosts. You will get a quick overview of the result by passing `-S/--summary`.
 
 ```
 narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H narbeh.org:443 test.com twitter.com -S
@@ -264,7 +270,7 @@ Finally, if you want to export JSON's output per host in a separate file, use `-
 
 # As a Python Module
 
-Simply import the `ssl_checker.py` into your Python script and use it as a module.
+Import the `ssl_checker.py` into your Python script and use it as a module.
 
 ```python
 from ssl_checker import SSLChecker
@@ -289,7 +295,7 @@ $ docker run -it --rm narbehaj/ssl-checker -H twitter.com
 
 ##### Build your own Dockerfile
 
-If you want to run this script via docker, simply do create your image and run it once:
+If you want to run this script via docker, create your image and run it once:
 
 ```shell
 $ docker build -t ssl-checker .
