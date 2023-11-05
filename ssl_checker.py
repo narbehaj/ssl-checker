@@ -48,9 +48,10 @@ class SSLChecker:
         oscon.set_connect_state()
         oscon.do_handshake()
         cert = oscon.get_peer_certificate()
+        resolved_ip = socket.gethostbyname(host)
         sock.close()
 
-        return cert
+        return cert, resolved_ip
 
     def border_msg(self, message):
         """Print the message in the box."""
@@ -178,6 +179,7 @@ class SSLChecker:
         print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
         print('\t\tIssued to: {}'.format(context[host]['issued_o']))
         print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
+        print('\t\tServer IP: {}'.format(context[host]['resolved_ip']))
         print('\t\tValid from: {}'.format(context[host]['valid_from']))
         print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], context[host]['valid_days_to_expire']))
         print('\t\tValidity days: {}'.format(context[host]['validity_days']))
@@ -233,12 +235,13 @@ class SSLChecker:
                         print('{}Socks proxy enabled, connecting via proxy{}\n'.format(Clr.YELLOW, Clr.RST))
 
                     socks_host, socks_port = self.filter_hostname(user_args.socks)
-                    cert = self.get_cert(host, port, socks_host, socks_port)
+                    cert, resolved_ip = self.get_cert(host, port, socks_host, socks_port)
                 else:
-                    cert = self.get_cert(host, port)
+                    cert, resolved_ip = self.get_cert(host, port)
 
                 context[host] = self.get_cert_info(host, cert)
                 context[host]['tcp_port'] = int(port)
+                context[host]['resolved_ip'] = resolved_ip
 
                 # Analyze the certificate if enabled
                 if user_args.analyze:
