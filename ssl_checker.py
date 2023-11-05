@@ -120,13 +120,14 @@ class SSLChecker:
         san = san.replace(',', ';')
         return san
 
-    def get_cert_info(self, host, cert):
+    def get_cert_info(self, host, cert, resolved_ip):
         """Get all the information about cert and create a JSON file."""
         context = {}
 
         cert_subject = cert.get_subject()
 
         context['host'] = host
+        context['resolved_ip'] = resolved_ip
         context['issued_to'] = cert_subject.CN
         context['issued_o'] = cert_subject.O
         context['issuer_c'] = cert.get_issuer().countryName
@@ -239,9 +240,8 @@ class SSLChecker:
                 else:
                     cert, resolved_ip = self.get_cert(host, port)
 
-                context[host] = self.get_cert_info(host, cert)
+                context[host] = self.get_cert_info(host, cert, resolved_ip)
                 context[host]['tcp_port'] = int(port)
-                context[host]['resolved_ip'] = resolved_ip
 
                 # Analyze the certificate if enabled
                 if user_args.analyze:
