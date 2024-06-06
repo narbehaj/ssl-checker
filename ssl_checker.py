@@ -252,10 +252,12 @@ class SSLChecker:
                 if not user_args.json_true and not user_args.summary_true:
                     self.print_status(host, context, user_args.analyze)
             except SSL.SysCallError:
+                context[host] = 'failed'
                 if not user_args.json_true:
                     print('\t{}[\u2717]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
                     self.total_failed += 1
             except Exception as error:
+                context[host] = 'failed'
                 if not user_args.json_true:
                     print('\t{}[\u2717]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
                     self.total_failed += 1
