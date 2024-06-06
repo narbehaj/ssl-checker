@@ -42,7 +42,9 @@ class SSLChecker:
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         osobj = SSL.Context(SSL.TLSv1_2_METHOD)
+        sock.settimeout(5)
         sock.connect((host, int(port)))
+        sock.settimeout(None)
         oscon = SSL.Connection(osobj, sock)
         oscon.set_tlsext_host_name(host.encode())
         oscon.set_connect_state()
