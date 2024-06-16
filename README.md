@@ -1,4 +1,4 @@
-# SSL Checker
+# Python SSL/TLS Checker
 #### Python script that collects SSL/TLS information from hosts
 
 
