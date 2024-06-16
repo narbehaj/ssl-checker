@@ -16,12 +16,13 @@ You can simply go to [https://ssl-checker.io](https://ssl-checker.io) or use the
 
 `curl https://ssl-checker.io/api/v1/check/example.com`
 
-
 ## Requirements
 
 `pip install -r requirements.txt`
 
+Or by pip installation:
 
+`pip install python-ssl-checker`
 
 ## Usage
 
@@ -128,8 +129,6 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 ```
 
 NOTE: Keep in mind that if the certificate has less than 15 days of validity, the script will consider it as a warning in the summary.
-
-
 
 ## Censored?
 
@@ -266,11 +265,11 @@ cert_sn,338163108483756707389368573553026254634358
 
 Finally, if you want to export JSON's output per host in a separate file, use `-J/--json-save`. This will export JSON's output per host. 
 
-
-
 # As a Python Module
 
-Import the `ssl_checker.py` into your Python script and use it as a module.
+Install with pip or import the `ssl_checker.py` into your Python script and use it as a module.
+
+`pip install python-ssl-checker`
 
 ```python
 from ssl_checker import SSLChecker
@@ -282,8 +281,6 @@ args = {
 
 SSLChecker.show_result(SSLChecker.get_args(json_args=args))
 ```
-
-
 
 # Docker
 
@@ -308,4 +305,3 @@ $ docker run -it --rm ssl-checker -H twitter.com
 
 - Make print_status cleaner and smarter
 - Add certificate chain validation
-
