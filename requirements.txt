@@ -1,2 +1,4 @@
 pyopenssl
 json2html
+fastapi
+uvicorn
