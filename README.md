@@ -93,6 +93,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 		Valid from: 2019-09-06
 		Valid to: 2020-10-06 (78 days left)
 		Validity days: 396
+		TLS Version: TLS 1.2
 		Certificate valid: True
 		Certificate S/N: 20641318859548253362475798736742284477
 		Certificate SHA1 FP: D5:CE:1B:77:AB:59:C9:BE:37:58:0F:5D:73:97:64:98:C4:3E:43:30
@@ -112,6 +113,7 @@ narbeh@narbeh-laptop:~/ssl-checker$ ./ssl_checker.py -H time.com github.com:443
 		Valid from: 2020-05-05
 		Valid to: 2022-05-10 (659 days left)
 		Validity days: 735
+		TLS Version: TLS 1.2
 		Certificate valid: True
 		Certificate S/N: 7101927171473588541993819712332065657
 		Certificate SHA1 FP: 5F:3F:7A:C2:56:9F:50:A4:66:76:47:C6:A1:8C:A0:07:AA:ED:BB:8E
@@ -158,6 +160,7 @@ narbeh@narbeh-xps:~/ssl-checker$ ./ssl_checker.py -H facebook.com -s localhost:9
 		Valid from: 2020-05-14
 		Valid to: 2020-08-05 (16 days left)
 		Validity days: 83
+		TLS Version: TLS 1.2
 		Certificate valid: True
 		Certificate S/N: 19351530099991824979726880175805235719
 		Certificate SHA1 FP: 89:7F:54:63:61:34:2F:7E:B4:B5:68:E2:92:79:D2:98:B4:97:D8:EA
@@ -216,6 +219,7 @@ Warning: -a/--analyze is enabled. It takes more time...
 		Valid from: 2018-04-21
 		Valid to: 2018-07-20 (88 days left)
 		Validity days: 90
+		TLS Version: TLS 1.2
 		Certificate S/N: 338163108483756707389368573553026254634358
 		Certificate version: 2
 		Certificate algorithm: sha256WithRSAEncryption

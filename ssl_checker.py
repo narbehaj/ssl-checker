@@ -41,19 +41,37 @@ class SSLChecker:
             socket.socket = socks.socksocket
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        osobj = SSL.Context(SSL.TLSv1_2_METHOD)
         sock.settimeout(5)
         sock.connect((host, int(port)))
         sock.settimeout(None)
-        oscon = SSL.Connection(osobj, sock)
-        oscon.set_tlsext_host_name(host.encode())
-        oscon.set_connect_state()
-        oscon.do_handshake()
-        cert = oscon.get_peer_certificate()
-        resolved_ip = socket.gethostbyname(host)
-        sock.close()
-
-        return cert, resolved_ip
+        
+        # Try different TLS versions in order of preference (newest to oldest)
+        tls_methods = [
+            (SSL.TLSv1_2_METHOD, "TLS 1.2"),  # TLS 1.2
+            (SSL.TLSv1_1_METHOD, "TLS 1.1"),  # TLS 1.1
+            (SSL.TLSv1_METHOD, "TLS 1.0"),    # TLS 1.0
+        ]
+        
+        for tls_method, tls_version in tls_methods:
+            try:
+                osobj = SSL.Context(tls_method)
+                oscon = SSL.Connection(osobj, sock)
+                oscon.set_tlsext_host_name(host.encode())
+                oscon.set_connect_state()
+                oscon.do_handshake()
+                cert = oscon.get_peer_certificate()
+                resolved_ip = socket.gethostbyname(host)
+                sock.close()
+                return cert, resolved_ip, tls_version
+            except SSL.SysCallError as e:
+                # If this TLS version fails, try the next one
+                continue
+            except Exception as e:
+                # For other exceptions, try the next TLS version
+                continue
+        
+        # If all TLS versions fail, raise the last exception
+        raise SSL.SysCallError("Failed to establish SSL connection with any supported TLS version")
 
     def border_msg(self, message):
         """Print the message in the box."""
@@ -122,7 +140,7 @@ class SSLChecker:
         san = san.replace(',', ';')
         return san
 
-    def get_cert_info(self, host, cert, resolved_ip):
+    def get_cert_info(self, host, cert, resolved_ip, tls_version=None):
         """Get all the information about cert and create a JSON file."""
         context = {}
 
@@ -130,6 +148,7 @@ class SSLChecker:
 
         context['host'] = host
         context['resolved_ip'] = resolved_ip
+        context['tls_version'] = tls_version
         context['issued_to'] = cert_subject.CN
         context['issued_o'] = cert_subject.O
         context['issuer_c'] = cert.get_issuer().countryName
@@ -186,6 +205,7 @@ class SSLChecker:
         print('\t\tValid from: {}'.format(context[host]['valid_from']))
         print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], context[host]['valid_days_to_expire']))
         print('\t\tValidity days: {}'.format(context[host]['validity_days']))
+        print('\t\tTLS Version: {}'.format(context[host]['tls_version']))
         print('\t\tCertificate valid: {}'.format(context[host]['cert_valid']))
         print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
         print('\t\tCertificate SHA1 FP: {}'.format(context[host]['cert_sha1']))
@@ -238,11 +258,11 @@ class SSLChecker:
                         print('{}Socks proxy enabled, connecting via proxy{}\n'.format(Clr.YELLOW, Clr.RST))
 
                     socks_host, socks_port = self.filter_hostname(user_args.socks)
-                    cert, resolved_ip = self.get_cert(host, port, socks_host, socks_port)
+                    cert, resolved_ip, tls_version = self.get_cert(host, port, socks_host, socks_port)
                 else:
-                    cert, resolved_ip = self.get_cert(host, port)
+                    cert, resolved_ip, tls_version = self.get_cert(host, port)
 
-                context[host] = self.get_cert_info(host, cert, resolved_ip)
+                context[host] = self.get_cert_info(host, cert, resolved_ip, tls_version)
                 context[host]['tcp_port'] = int(port)
 
                 # Analyze the certificate if enabled
