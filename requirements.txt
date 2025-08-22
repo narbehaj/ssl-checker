@@ -1,2 +1,3 @@
-pyopenssl
+cryptography
 json2html
+requests

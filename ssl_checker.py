@@ -2,14 +2,17 @@
 import socket
 import sys
 import json
+import ssl
+from datetime import datetime, timezone
 
 from argparse import ArgumentParser, SUPPRESS
-from datetime import datetime
 from time import sleep
 from csv import DictWriter
 
 try:
-    from OpenSSL import SSL
+    from cryptography import x509
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import hashes
     from json2html import *
 except ImportError:
     print('Please install required modules: pip install -r requirements.txt')
@@ -46,24 +49,32 @@ class SSLChecker:
         sock.settimeout(None)
         
         # Try different TLS versions in order of preference (newest to oldest)
-        tls_methods = [
-            (SSL.TLSv1_2_METHOD, "TLS 1.2"),  # TLS 1.2
-            (SSL.TLSv1_1_METHOD, "TLS 1.1"),  # TLS 1.1
-            (SSL.TLSv1_METHOD, "TLS 1.0"),    # TLS 1.0
+        tls_versions = [
+            (ssl.PROTOCOL_TLSv1_2, "TLS 1.2"),
+            (ssl.PROTOCOL_TLSv1_1, "TLS 1.1"),
+            (ssl.PROTOCOL_TLSv1, "TLS 1.0"),
         ]
         
-        for tls_method, tls_version in tls_methods:
+        for tls_protocol, tls_version in tls_versions:
             try:
-                osobj = SSL.Context(tls_method)
-                oscon = SSL.Connection(osobj, sock)
-                oscon.set_tlsext_host_name(host.encode())
-                oscon.set_connect_state()
-                oscon.do_handshake()
-                cert = oscon.get_peer_certificate()
+                # Create SSL context
+                context = ssl.create_default_context()
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                
+                # Wrap socket with SSL
+                ssl_sock = context.wrap_socket(sock, server_hostname=host)
+                ssl_sock.do_handshake()
+                
+                # Get certificate in DER format and convert to X509 object
+                cert_der = ssl_sock.getpeercert(binary_form=True)
+                cert = x509.load_der_x509_certificate(cert_der, default_backend())
+                
                 resolved_ip = socket.gethostbyname(host)
+                ssl_sock.close()
                 sock.close()
                 return cert, resolved_ip, tls_version
-            except SSL.SysCallError as e:
+            except (ssl.SSLError, ssl.CertificateError, OSError) as e:
                 # If this TLS version fails, try the next one
                 continue
             except Exception as e:
@@ -71,7 +82,7 @@ class SSLChecker:
                 continue
         
         # If all TLS versions fail, raise the last exception
-        raise SSL.SysCallError("Failed to establish SSL connection with any supported TLS version")
+        raise ssl.SSLError("Failed to establish SSL connection with any supported TLS version")
 
     def border_msg(self, message):
         """Print the message in the box."""
@@ -127,15 +138,26 @@ class SSLChecker:
 
     def get_cert_sans(self, x509cert):
         """
-        Get Subject Alt Names from Certificate. Shameless taken from stack overflow:
-        https://stackoverflow.com/users/4547691/anatolii-chmykhalo
+        Get Subject Alt Names from Certificate using cryptography library.
         """
         san = ''
-        ext_count = x509cert.get_extension_count()
-        for i in range(0, ext_count):
-            ext = x509cert.get_extension(i)
-            if 'subjectAltName' in str(ext.get_short_name()):
-                san = ext.__str__()
+        try:
+            # Get the Subject Alternative Name extension
+            san_extension = x509cert.extensions.get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            if san_extension:
+                san_names = san_extension.value
+                # Convert all SAN types to strings
+                san_list = []
+                for name in san_names:
+                    if hasattr(name, 'value'):
+                        san_list.append(str(name.value))
+                    else:
+                        san_list.append(str(name))
+                san = '; '.join(san_list)
+        except x509.extensions.ExtensionNotFound:
+            # No SAN extension found
+            pass
+        
         # replace commas to not break csv output
         san = san.replace(',', ';')
         return san
@@ -144,47 +166,60 @@ class SSLChecker:
         """Get all the information about cert and create a JSON file."""
         context = {}
 
-        cert_subject = cert.get_subject()
+        # Get subject information
+        subject = cert.subject
+        issuer = cert.issuer
 
         context['host'] = host
         context['resolved_ip'] = resolved_ip
         context['tls_version'] = tls_version
-        context['issued_to'] = cert_subject.CN
-        context['issued_o'] = cert_subject.O
-        context['issuer_c'] = cert.get_issuer().countryName
-        context['issuer_o'] = cert.get_issuer().organizationName
-        context['issuer_ou'] = cert.get_issuer().organizationalUnitName
-        context['issuer_cn'] = cert.get_issuer().commonName
-        context['cert_sn'] = str(cert.get_serial_number())
-        context['cert_sha1'] = cert.digest('sha1').decode()
-        context['cert_alg'] = cert.get_signature_algorithm().decode()
-        context['cert_ver'] = cert.get_version()
+        
+        # Get common name from subject
+        cn_attr = subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+        context['issued_to'] = cn_attr[0].value if cn_attr else 'N/A'
+        
+        # Get organization from subject
+        o_attr = subject.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
+        context['issued_o'] = o_attr[0].value if o_attr else 'N/A'
+        
+        # Get issuer information
+        issuer_c_attr = issuer.get_attributes_for_oid(x509.NameOID.COUNTRY_NAME)
+        context['issuer_c'] = issuer_c_attr[0].value if issuer_c_attr else 'N/A'
+        
+        issuer_o_attr = issuer.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
+        context['issuer_o'] = issuer_o_attr[0].value if issuer_o_attr else 'N/A'
+        
+        issuer_ou_attr = issuer.get_attributes_for_oid(x509.NameOID.ORGANIZATIONAL_UNIT_NAME)
+        context['issuer_ou'] = issuer_ou_attr[0].value if issuer_ou_attr else 'N/A'
+        
+        issuer_cn_attr = issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+        context['issuer_cn'] = issuer_cn_attr[0].value if issuer_cn_attr else 'N/A'
+        
+        context['cert_sn'] = str(cert.serial_number)
+        context['cert_sha1'] = cert.fingerprint(hashes.SHA1()).hex()
+        context['cert_alg'] = cert.signature_algorithm_oid._name
+        context['cert_ver'] = cert.version.value
         context['cert_sans'] = self.get_cert_sans(cert)
-        context['cert_exp'] = cert.has_expired()
-        context['cert_valid'] = False if cert.has_expired() else True
+        context['cert_exp'] = cert.not_valid_after_utc < datetime.now(timezone.utc)
+        context['cert_valid'] = not context['cert_exp']
 
         # Valid from
-        valid_from = datetime.strptime(cert.get_notBefore().decode('ascii'),
-                                       '%Y%m%d%H%M%SZ')
-        context['valid_from'] = valid_from.strftime('%Y-%m-%d')
+        context['valid_from'] = cert.not_valid_before_utc.strftime('%Y-%m-%d')
 
         # Valid till
-        valid_till = datetime.strptime(cert.get_notAfter().decode('ascii'),
-                                       '%Y%m%d%H%M%SZ')
-        context['valid_till'] = valid_till.strftime('%Y-%m-%d')
+        context['valid_till'] = cert.not_valid_after_utc.strftime('%Y-%m-%d')
 
         # Validity days
-        context['validity_days'] = (valid_till - valid_from).days
+        context['validity_days'] = (cert.not_valid_after_utc - cert.not_valid_before_utc).days
 
         # Validity in days from now
-        now = datetime.now()
-        context['days_left'] = (valid_till - now).days
+        now = datetime.now(timezone.utc)
+        context['days_left'] = (cert.not_valid_after_utc - now).days
 
         # Valid days left
-        context['valid_days_to_expire'] = (datetime.strptime(context['valid_till'],
-                                           '%Y-%m-%d') - datetime.now()).days
+        context['valid_days_to_expire'] = (cert.not_valid_after_utc - datetime.now(timezone.utc)).days
 
-        if cert.has_expired():
+        if context['cert_exp']:
             self.total_expired += 1
         else:
             self.total_valid += 1
@@ -232,7 +267,7 @@ class SSLChecker:
     def show_result(self, user_args):
         """Get the context."""
         context = {}
-        start_time = datetime.now()
+        start_time = datetime.now(timezone.utc)
         hosts = user_args.hosts
 
         if not user_args.json_true and not user_args.summary_true:
@@ -271,7 +306,7 @@ class SSLChecker:
 
                 if not user_args.json_true and not user_args.summary_true:
                     self.print_status(host, context, user_args.analyze)
-            except SSL.SysCallError:
+            except ssl.SSLError:
                 context[host] = 'failed'
                 if not user_args.json_true:
                     print('\t{}[\u2717]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
@@ -288,7 +323,7 @@ class SSLChecker:
         if not user_args.json_true:
             self.border_msg(' Successful: {} | Failed: {} | Valid: {} | Warning: {} | Expired: {} | Duration: {} '.format(
                 len(hosts) - self.total_failed, self.total_failed, self.total_valid,
-                self.total_warning, self.total_expired, datetime.now() - start_time))
+                self.total_warning, self.total_expired, datetime.now(timezone.utc) - start_time))
             if user_args.summary_true:
                 # Exit the script just
                 return
@@ -329,7 +364,7 @@ class SSLChecker:
     def export_html(self, context):
         """Export JSON to HTML."""
         html = json2html.convert(json=context)
-        file_name = datetime.strftime(datetime.now(), '%Y_%m_%d_%H_%M_%S')
+        file_name = datetime.strftime(datetime.now(timezone.utc), '%Y_%m_%d_%H_%M_%S')
         with open('{}.html'.format(file_name), 'w') as html_file:
             html_file.write(html)
 
