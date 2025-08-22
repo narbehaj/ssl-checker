@@ -35,7 +35,7 @@ class SSLChecker:
     total_failed = 0
     total_warning = 0
 
-    def get_cert(self, host, port, socks_host=None, socks_port=None):
+    def get_cert(self, host, port, socks_host=None, socks_port=None, timeout=5):
         """Connection to the host."""
         if socks_host:
             import socks
@@ -44,7 +44,7 @@ class SSLChecker:
             socket.socket = socks.socksocket
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
+        sock.settimeout(timeout)
         sock.connect((host, int(port)))
         sock.settimeout(None)
         
@@ -293,9 +293,9 @@ class SSLChecker:
                         print('{}Socks proxy enabled, connecting via proxy{}\n'.format(Clr.YELLOW, Clr.RST))
 
                     socks_host, socks_port = self.filter_hostname(user_args.socks)
-                    cert, resolved_ip, tls_version = self.get_cert(host, port, socks_host, socks_port)
+                    cert, resolved_ip, tls_version = self.get_cert(host, port, socks_host, socks_port, user_args.timeout)
                 else:
-                    cert, resolved_ip, tls_version = self.get_cert(host, port)
+                    cert, resolved_ip, tls_version = self.get_cert(host, port, timeout=user_args.timeout)
 
                 context[host] = self.get_cert_info(host, cert, resolved_ip, tls_version)
                 context[host]['tcp_port'] = int(port)
@@ -439,6 +439,9 @@ class SSLChecker:
         parser.add_argument('-J', '--json-save', dest='json_save_true',
                             action='store_true', default=False,
                             help='Enable JSON export individually per host')
+        parser.add_argument('-t', '--timeout', dest='timeout',
+                            type=int, default=5,
+                            help='Timeout for the connection in seconds (default: 5)')
         parser.add_argument('-a', '--analyze', dest='analyze',
                             default=False, action='store_true',
                             help='Enable SSL security analysis on the host')
