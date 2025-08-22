@@ -28,24 +28,26 @@ Or by pip installation:
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py (-H [HOSTS [HOSTS ...]] | -f HOST_FILE) [-s HOST:PORT]
-                      [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-a] [-v] [-h]
+usage: ssl_checker.py (-H [HOSTS ...] | -f HOST_FILE) [-s HOST:PORT] [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-t TIMEOUT] [-a]
+                      [-v] [-h]
 
 Collects useful information about the given host's SSL certificates.
 
-optional arguments:
-  -H [HOSTS [HOSTS ...]], --host [HOSTS [HOSTS ...]]
+options:
+  -H, --host [HOSTS ...]
                         Hosts as input separated by space
-  -f HOST_FILE, --host-file HOST_FILE
+  -f, --host-file HOST_FILE
                         Hosts as input from a file
-  -s HOST:PORT, --socks HOST:PORT
+  -s, --socks HOST:PORT
                         Enable SOCKS proxy for connection
-  -c FILENAME.CSV, --csv FILENAME.CSV
+  -c, --csv FILENAME.CSV
                         Enable CSV file export
   -j, --json            Enable JSON in the output
   -S, --summary         Enable summary output only
   -x, --html            Enable HTML file export
   -J, --json-save       Enable JSON export individually per host
+  -t, --timeout TIMEOUT
+                        Timeout for the connection in seconds (default: 5)
   -a, --analyze         Enable SSL security analysis on the host
   -v, --verbose         Enable verbose to see what is going on
   -h, --help            Show this help message and exit
@@ -69,6 +71,8 @@ The port is optional here. The script will use 443 if not specified.
 `-x, --html ` Enable HTML file export
 
 `-J, --json-save` Use this if you want to save as JSON file per host
+
+`-t, --timeout TIMEOUT` Timeout for the connection in seconds (default: 5)
 
 `-a, --analyze` This argument will include security analysis on the certificate. Takes more time. No result means failure to analyze. 
 
