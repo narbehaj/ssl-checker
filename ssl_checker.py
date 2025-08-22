@@ -61,15 +61,15 @@ class SSLChecker:
                 context = ssl.create_default_context()
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
-                
+
                 # Wrap socket with SSL
                 ssl_sock = context.wrap_socket(sock, server_hostname=host)
                 ssl_sock.do_handshake()
-                
+
                 # Get certificate in DER format and convert to X509 object
                 cert_der = ssl_sock.getpeercert(binary_form=True)
                 cert = x509.load_der_x509_certificate(cert_der, default_backend())
-                
+
                 resolved_ip = socket.gethostbyname(host)
                 ssl_sock.close()
                 sock.close()
@@ -157,7 +157,7 @@ class SSLChecker:
         except x509.extensions.ExtensionNotFound:
             # No SAN extension found
             pass
-        
+
         # replace commas to not break csv output
         san = san.replace(',', ';')
         return san
@@ -173,28 +173,28 @@ class SSLChecker:
         context['host'] = host
         context['resolved_ip'] = resolved_ip
         context['tls_version'] = tls_version
-        
+
         # Get common name from subject
         cn_attr = subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
         context['issued_to'] = cn_attr[0].value if cn_attr else 'N/A'
-        
+
         # Get organization from subject
         o_attr = subject.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
         context['issued_o'] = o_attr[0].value if o_attr else 'N/A'
-        
+
         # Get issuer information
         issuer_c_attr = issuer.get_attributes_for_oid(x509.NameOID.COUNTRY_NAME)
         context['issuer_c'] = issuer_c_attr[0].value if issuer_c_attr else 'N/A'
-        
+
         issuer_o_attr = issuer.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
         context['issuer_o'] = issuer_o_attr[0].value if issuer_o_attr else 'N/A'
-        
+
         issuer_ou_attr = issuer.get_attributes_for_oid(x509.NameOID.ORGANIZATIONAL_UNIT_NAME)
         context['issuer_ou'] = issuer_ou_attr[0].value if issuer_ou_attr else 'N/A'
-        
+
         issuer_cn_attr = issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
         context['issuer_cn'] = issuer_cn_attr[0].value if issuer_cn_attr else 'N/A'
-        
+
         context['cert_sn'] = str(cert.serial_number)
         context['cert_sha1'] = cert.fingerprint(hashes.SHA1()).hex()
         context['cert_alg'] = cert.signature_algorithm_oid._name
@@ -356,10 +356,30 @@ class SSLChecker:
             print('{}Generating CSV export{}\n'.format(Clr.YELLOW, Clr.RST))
 
         with open(filename, 'w') as csv_file:
-            csv_writer = DictWriter(csv_file, list(context.items())[0][1].keys())
-            csv_writer.writeheader()
-            for host in context.keys():
-                csv_writer.writerow(context[host])
+            # Get the first successful host to determine CSV structure
+            sample_host = None
+            for host, data in context.items():
+                if isinstance(data, dict):
+                    sample_host = data
+                    break
+
+            if sample_host:
+                csv_writer = DictWriter(csv_file, sample_host.keys())
+                csv_writer.writeheader()
+                for host in context.keys():
+                    if isinstance(context[host], dict):
+                        csv_writer.writerow(context[host])
+                    else:
+                        # Handle failed hosts by creating a row with 'failed' status
+                        failed_row = {key: 'failed' for key in sample_host.keys()}
+                        failed_row['host'] = host
+                        csv_writer.writerow(failed_row)
+            else:
+                # No successful hosts found, create simple CSV with status column
+                csv_writer = DictWriter(csv_file, ['host', 'status'])
+                csv_writer.writeheader()
+                for host in context.keys():
+                    csv_writer.writerow({'host': host, 'status': 'failed'})
 
     def export_html(self, context):
         """Export JSON to HTML."""
