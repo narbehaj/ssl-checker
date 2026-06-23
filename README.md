@@ -5,9 +5,19 @@
 
 ## About
 
-It's a simple script running in Python that collects SSL/TLS information and then returns the group of information in JSON. It can also connect through your specified SOCKS server.
+It's a swiss-army script running in Python that collects SSL/TLS information from endpoints and returns the group of information as human-readable text, JSON, CSV, or HTML. It can also connect through your specified SOCKS server.
 
-One of the good things about this script is that it will fully analyze the SSL certificate for security issues and include the report in the output, CSV, HTML, or JSON file.
+Highlights:
+
+- **Real validation** — verifies the certificate chain against the system trust store and checks that the hostname actually matches the certificate (with wildcard support), so you can tell *expired*, *untrusted*, *self-signed*, and *wrong-host* apart.
+- **Correct protocol/cipher reporting** — reports the *actually negotiated* TLS version and cipher suite (TLS 1.3 aware).
+- **Protocol enumeration** (`-p`) — probes which of TLS 1.0–1.3 an endpoint accepts and flags the insecure ones still enabled.
+- **Weak-config detection** — flags weak public keys (RSA/DSA < 2048-bit) and weak signature hashes (SHA-1/MD5).
+- **STARTTLS** (`-T`) — inspect certificates on SMTP, IMAP, POP3, FTP, and XMPP endpoints, not just HTTPS.
+- **Parallel scanning** (`-n`) — check many hosts concurrently.
+- **Monitoring mode** (`-e`, `-q`) — Nagios-style exit codes (`1` = warning, `2` = critical) and a quiet mode that only prints hosts with a problem.
+- **SSL Labs analysis** (`-a`) — optional deep scan for known vulnerabilities and a letter grade.
+- **Resilient by default** — IPv4/IPv6, automatic retries on dropped connections, host lists from a file or stdin (blank lines and `#` comments ignored), and an optional custom CA bundle (`--ca-file`).
 
 
 ## Online API Based Version
@@ -28,8 +38,10 @@ Or by pip installation:
 
 ```
 ./ssl_checker.py -h
-usage: ssl_checker.py (-H [HOSTS ...] | -f HOST_FILE) [-s HOST:PORT] [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-t TIMEOUT] [-a]
-                      [-v] [-h]
+usage: ssl_checker.py (-H [HOSTS ...] | -f HOST_FILE) [-s HOST:PORT]
+                      [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-t TIMEOUT]
+                      [-r N] [-a] [-p] [-T PROTO] [--ca-file FILE] [-n N]
+                      [-w DAYS] [-q] [-e] [-v] [-h]
 
 Collects useful information about the given host's SSL certificates.
 
@@ -37,7 +49,7 @@ options:
   -H, --host [HOSTS ...]
                         Hosts as input separated by space
   -f, --host-file HOST_FILE
-                        Hosts as input from a file
+                        Hosts from a file ('-' reads stdin)
   -s, --socks HOST:PORT
                         Enable SOCKS proxy for connection
   -c, --csv FILENAME.CSV
@@ -48,7 +60,17 @@ options:
   -J, --json-save       Enable JSON export individually per host
   -t, --timeout TIMEOUT
                         Timeout for the connection in seconds (default: 5)
+  -r, --retries N       Retries on a dropped connection (default: 2)
   -a, --analyze         Enable SSL security analysis on the host
+  -p, --protocols       Probe which TLS versions (1.0-1.3) the host accepts
+  -T, --starttls PROTO  Use STARTTLS first (smtp/imap/pop3/ftp/xmpp)
+  --ca-file FILE        Verify against this CA bundle instead of the system
+                        store
+  -n, --concurrency N   Number of hosts to check in parallel (default: 1)
+  -w, --warning-days DAYS
+                        Days-to-expiry threshold for a warning (default: 15)
+  -q, --quiet           Only print hosts that have a problem
+  -e, --exit-code       Exit non-zero for monitoring (1=warning, 2=critical)
   -v, --verbose         Enable verbose to see what is going on
   -h, --help            Show this help message and exit
 ```
@@ -56,7 +78,7 @@ options:
 
 The port is optional here. The script will use 443 if not specified.
 
-`-f, --host-file` File containing hostnames for input
+`-f, --host-file` File containing hostnames for input. Use `-` to read the list from stdin. Blank lines and lines starting with `#` are ignored, so you can keep a commented host list.
 
 `-H, --host ` Enter the hosts separated by space
 
@@ -74,7 +96,23 @@ The port is optional here. The script will use 443 if not specified.
 
 `-t, --timeout TIMEOUT` Timeout for the connection in seconds (default: 5)
 
+`-r, --retries N` How many times to retry a dropped connection (reset/refused) before giving up (default: 2). Timeouts are not retried, so an unreachable host won't stall for several timeouts in a row.
+
 `-a, --analyze` This argument will include security analysis on the certificate. Takes more time. No result means failure to analyze. 
+
+`--ca-file FILE` Verify the certificate chain against the CA bundle in `FILE` instead of the operating system trust store. Handy for internal/private CAs.
+
+`-q, --quiet` Only print hosts that have a problem (expired, untrusted, wrong hostname, failed, or expiring within `--warning-days`). The summary line is still shown. Great for noisy host lists.
+
+`-p, --protocols` Probe each of TLS 1.0–1.3 individually and report which versions the endpoint accepts. Versions that are still enabled but considered insecure (TLS 1.0/1.1) are highlighted as weak.
+
+`-T, --starttls PROTO` Upgrade a plaintext connection with STARTTLS before inspecting the certificate. Supports `smtp`, `imap`, `pop3`, `ftp`, and `xmpp`. Remember to point the port at the right service, e.g. `-H mail.example.com:587 -T smtp`.
+
+`-n, --concurrency N` Check up to N hosts in parallel. Great for scanning a large `--host-file`. (Forced to 1 when `-s/--socks` is used, since the proxy uses global state.)
+
+`-w, --warning-days DAYS` Number of days before expiry that counts as a warning (default: 15). Affects the summary and the `-e` exit code.
+
+`-e, --exit-code` Return a monitoring-friendly exit code: `0` = all good, `1` = at least one certificate is expiring within `--warning-days`, `2` = at least one host failed, expired, or is untrusted. Ideal for cron jobs and CI pipelines.
 
 `-v, --verbose` Shows more output. Good for troubleshooting.
 
@@ -243,6 +281,80 @@ Warning: -a/--analyze is enabled. It takes more time...
 
 
 
+## Certificate Validation
+
+Unlike a plain "is it expired?" check, the script tells you *why* a certificate is good or bad. Every host reports whether the chain is **trusted** by your system trust store and whether the **hostname matches** the certificate (wildcards included):
+
+```
+$ ./ssl_checker.py -H wrong.host.badssl.com self-signed.badssl.com
+	[✗] wrong.host.badssl.com
+		Certificate trusted: True
+		Hostname matches: False
+		Validation note: Hostname mismatch, certificate is not valid for 'wrong.host.badssl.com'.
+		Certificate valid: False
+
+	[✗] self-signed.badssl.com
+		Certificate trusted: False
+		Hostname matches: True
+		Self-signed certificate
+		Validation note: self-signed certificate
+		Certificate valid: False
+```
+
+`Certificate valid` is `True` only when the cert is not expired **and** the chain is trusted **and** the hostname matches. The output also reports the public-key type/size and signature hash, flagging weak keys (RSA/DSA < 2048-bit) and weak hashes (SHA-1/MD5).
+
+
+## Protocol Enumeration
+
+Pass `-p/--protocols` to find out exactly which TLS versions an endpoint will accept and to catch legacy protocols that should be disabled:
+
+```
+$ ./ssl_checker.py -H github.com -p
+		TLS Version: TLSv1.3
+		Cipher: TLS_AES_128_GCM_SHA256
+		...
+		Supported protocols: TLS 1.2, TLS 1.3
+```
+
+If a host still accepts TLS 1.0 or 1.1, they are listed under `Weak protocols enabled`.
+
+
+## STARTTLS (Mail / FTP / XMPP)
+
+HTTPS isn't the only thing using certificates. Use `-T/--starttls` to inspect the certificate on a mail or FTP server that upgrades a plaintext connection:
+
+```
+$ ./ssl_checker.py -H smtp.gmail.com:587 -T smtp
+	[✓] smtp.gmail.com
+		Issued by: Google Trust Services (US)
+		TLS Version: TLSv1.3
+		Certificate trusted: True
+		Hostname matches: True
+```
+
+Supported protocols: `smtp`, `imap`, `pop3`, `ftp`, `xmpp`.
+
+
+## Monitoring (Exit Codes) and Concurrency
+
+For scheduled checks, combine a host file (or `-` for stdin), parallel scanning, quiet output, and a monitoring exit code:
+
+```
+$ ./ssl_checker.py -f hosts.txt -n 20 -w 30 -q -e
++-------------------------------------------------------------------------------------------------------------+
+| Successful: 50 | Failed: 0 | Valid: 50 | Warning: 2 | Expired: 0 | Untrusted: 0 | Duration: 0:00:03.114520 |
++-------------------------------------------------------------------------------------------------------------+
+$ echo $?
+1
+```
+
+Exit codes: `0` healthy, `1` something expires within `--warning-days`, `2` something failed/expired/untrusted. Drop it straight into cron:
+
+```cron
+0 7 * * * /path/to/ssl_checker.py -f /etc/ssl-hosts.txt -w 21 -e -S || mail -s "SSL warning" you@example.com
+```
+
+
 ## JSON, HTML, and CSV Output
 
 Example only with the `-j/--json` argument which shows the JSON only. Perfect for piping to another tool.
@@ -312,4 +424,5 @@ $ docker run -it --rm ssl-checker -H twitter.com
 ## Todo
 
 - Make print_status cleaner and smarter
-- Add certificate chain validation
+- OCSP / CRL revocation checking
+- Optional per-cipher enumeration (not just per-protocol)

@@ -1,17 +1,15 @@
-FROM python:3.8-alpine AS builder
+FROM python:3.13-slim
 
 WORKDIR /app
+
+# Run as a normal user, not root.
+RUN useradd --create-home checker
+
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN apk add --no-cache gcc musl-dev libffi-dev \
-    && pip install --no-cache-dir -r requirements.txt \
-    && apk del gcc musl-dev libffi-dev
+COPY ssl_checker.py socks.py ./
 
-FROM python:3.8-alpine
+USER checker
 
-COPY --from=builder /usr/local/lib/python3.8/site-packages /usr/local/lib/python3.8/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-COPY . .
-
-ENTRYPOINT ["python", "/ssl_checker.py"]
+ENTRYPOINT ["python", "/app/ssl_checker.py"]

@@ -1,0 +1,17 @@
+# Virtual environments and caches
+.venv/
+venv*/
+__pycache__/
+*.py[cod]
+
+# Git and tooling
+.git/
+.github/
+.claude/
+
+# Docs and outputs we don't need in the image
+README.md
+LICENSE
+*.json
+*.csv
+*.html

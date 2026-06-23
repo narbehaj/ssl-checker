@@ -3,16 +3,19 @@ import socket
 import sys
 import json
 import ssl
+import warnings
 from datetime import datetime, timezone
 
 from argparse import ArgumentParser, SUPPRESS
 from time import sleep
 from csv import DictWriter
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from cryptography import x509
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import rsa, dsa, ec
     from json2html import *
 except ImportError:
     print('Please install required modules: pip install -r requirements.txt')
@@ -28,61 +31,221 @@ class Clr:
     YELLOW = '\033[33m'
 
 
+TLS_VERSIONS = [
+    ('TLS 1.0', getattr(ssl.TLSVersion, 'TLSv1', None), True),
+    ('TLS 1.1', getattr(ssl.TLSVersion, 'TLSv1_1', None), True),
+    ('TLS 1.2', getattr(ssl.TLSVersion, 'TLSv1_2', None), False),
+    ('TLS 1.3', getattr(ssl.TLSVersion, 'TLSv1_3', None), False),
+]
+
+STARTTLS_PROTOCOLS = ('smtp', 'imap', 'pop3', 'ftp', 'xmpp')
+
+
 class SSLChecker:
 
     total_valid = 0
     total_expired = 0
     total_failed = 0
     total_warning = 0
+    total_untrusted = 0
 
-    def get_cert(self, host, port, socks_host=None, socks_port=None, timeout=5):
-        """Connection to the host."""
-        if socks_host:
+    def connect(self, host, port, user_args):
+        """Open a TCP socket to the host, going through SOCKS if asked to."""
+        if user_args.socks:
             import socks
 
-            socks.setdefaultproxy(socks.PROXY_TYPE_SOCKS5, socks_host, int(socks_port), True)
-            socket.socket = socks.socksocket
+            proxy_host, proxy_port = self.filter_hostname(user_args.socks)
+            sock = socks.socksocket()
+            sock.set_proxy(socks.PROXY_TYPE_SOCKS5, proxy_host, int(proxy_port), True)
+            sock.settimeout(user_args.timeout)
+            sock.connect((host, int(port)))
+            return sock
 
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        sock.connect((host, int(port)))
-        sock.settimeout(None)
-        
-        # Try different TLS versions in order of preference (newest to oldest)
-        tls_versions = [
-            (ssl.PROTOCOL_TLSv1_2, "TLS 1.2"),
-            (ssl.PROTOCOL_TLSv1_1, "TLS 1.1"),
-            (ssl.PROTOCOL_TLSv1, "TLS 1.0"),
-        ]
-        
-        for tls_protocol, tls_version in tls_versions:
+        # create_connection walks every address getaddrinfo returns, so this
+        # works for IPv6-only hosts too.
+        return socket.create_connection((host, int(port)), user_args.timeout)
+
+    def starttls(self, sock, protocol, host):
+        """Upgrade a plaintext connection to TLS before the handshake."""
+        proto = protocol.lower()
+
+        def chat(line=None):
+            if line is not None:
+                sock.sendall(line.encode() + b'\r\n')
+            return sock.recv(4096)
+
+        if proto == 'smtp':
+            chat()
+            chat('EHLO ssl-checker')
+            chat('STARTTLS')
+        elif proto == 'imap':
+            chat()
+            chat('a001 STARTTLS')
+        elif proto == 'pop3':
+            chat()
+            chat('STLS')
+        elif proto == 'ftp':
+            chat()
+            chat('AUTH TLS')
+        elif proto == 'xmpp':
+            sock.sendall("<stream:stream xmlns='jabber:client' "
+                         "xmlns:stream='http://etherx.jabber.org/streams' "
+                         "to='{}' version='1.0'>".format(host).encode())
+            sock.recv(4096)
+            sock.sendall(b"<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")
+            sock.recv(4096)
+        else:
+            raise ValueError('Unsupported STARTTLS protocol: {}'.format(protocol))
+
+    def handshake(self, host, port, context, user_args):
+        """Do the TLS handshake and return the peer cert and connection facts.
+
+        A dropped connection (reset/refused) gets retried; a timeout does not,
+        so a dead host doesn't cost us several full timeouts in a row.
+        """
+        error = None
+        for attempt in range(user_args.retries + 1):
+            sock = self.connect(host, port, user_args)
             try:
-                # Create SSL context
-                context = ssl.create_default_context()
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-
-                # Wrap socket with SSL
-                ssl_sock = context.wrap_socket(sock, server_hostname=host)
-                ssl_sock.do_handshake()
-
-                # Get certificate in DER format and convert to X509 object
-                cert_der = ssl_sock.getpeercert(binary_form=True)
-                cert = x509.load_der_x509_certificate(cert_der, default_backend())
-
-                resolved_ip = socket.gethostbyname(host)
-                ssl_sock.close()
+                if user_args.starttls:
+                    self.starttls(sock, user_args.starttls, host)
+                tls = context.wrap_socket(sock, server_hostname=host)
+            except ssl.SSLError:
                 sock.close()
-                return cert, resolved_ip, tls_version
-            except (ssl.SSLError, ssl.CertificateError, OSError) as e:
-                # If this TLS version fails, try the next one
+                raise                       # cert/protocol issue, retrying won't help
+            except TimeoutError:
+                sock.close()
+                raise
+            except OSError as err:
+                sock.close()
+                error = err
+                sleep(0.5)
                 continue
-            except Exception as e:
-                # For other exceptions, try the next TLS version
+
+            try:
+                cert = tls.getpeercert(binary_form=True)
+                version = tls.version()
+                cipher = tls.cipher()
+                ip = 'via-proxy' if user_args.socks else tls.getpeername()[0]
+                return cert, version, cipher, self.chain_length(tls), ip
+            finally:
+                tls.close()
+
+        raise error
+
+    def chain_length(self, tls):
+        """How many certs the server sent, when the runtime can tell us."""
+        getter = getattr(tls, 'get_unverified_chain', None)
+        if getter is None:
+            return None
+        try:
+            return len(getter() or [])
+        except Exception:
+            return None
+
+    def get_cert(self, host, port, user_args):
+        """Grab the certificate and work out whether it can be trusted.
+
+        We try a full verification first. If that fails we retry without the
+        hostname check (to see if only the name was wrong) and finally with no
+        verification at all, so we can still report on a broken certificate.
+        """
+        ca_file = user_args.ca_file or None
+        verify = ssl.create_default_context(cafile=ca_file)
+
+        chain_only = ssl.create_default_context(cafile=ca_file)
+        chain_only.check_hostname = False
+
+        insecure = ssl.create_default_context()
+        insecure.check_hostname = False
+        insecure.verify_mode = ssl.CERT_NONE
+
+        trusted = True
+        note = None
+        try:
+            cert, version, cipher, chain, ip = self.handshake(host, port, verify, user_args)
+        except ssl.SSLCertVerificationError as err:
+            note = getattr(err, 'verify_message', None) or str(err)
+            try:
+                cert, version, cipher, chain, ip = self.handshake(host, port, chain_only, user_args)
+            except ssl.SSLError:
+                cert, version, cipher, chain, ip = self.handshake(host, port, insecure, user_args)
+                trusted = False
+
+        return {
+            'cert': x509.load_der_x509_certificate(cert, default_backend()),
+            'resolved_ip': ip,
+            'tls_version': version,
+            'cipher': cipher,
+            'chain_length': chain,
+            'trusted': trusted,
+            'validation_error': note,
+        }
+
+    def supported_protocols(self, host, port, user_args):
+        """Return a dict of TLS version -> whether the host accepts it."""
+        result = {}
+        for label, version, _weak in TLS_VERSIONS:
+            if version is None:
                 continue
-        
-        # If all TLS versions fail, raise the last exception
-        raise ssl.SSLError("Failed to establish SSL connection with any supported TLS version")
+
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            try:
+                # Pinning to an old version warns about its deprecation; that's
+                # the whole point of the probe, so silence it.
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore', DeprecationWarning)
+                    context.minimum_version = version
+                    context.maximum_version = version
+            except (ValueError, OSError):
+                result[label] = False          # OpenSSL refuses to even offer it
+                continue
+
+            try:
+                self.handshake(host, port, context, user_args)
+                result[label] = True
+            except Exception:
+                result[label] = False
+
+        return result
+
+    def host_matches_cert(self, host, cert):
+        """Does host match one of the cert's names? Handles single-level wildcards."""
+        names = []
+        try:
+            san = cert.extensions.get_extension_for_oid(
+                x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value
+            names = list(san.get_values_for_type(x509.DNSName))
+        except x509.extensions.ExtensionNotFound:
+            pass
+        if not names:
+            cn = cert.subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
+            if cn:
+                names = [cn[0].value]
+
+        host = host.lower().rstrip('.')
+        for name in names:
+            name = name.lower().rstrip('.')
+            if name.startswith('*.'):
+                suffix = name[1:]              # '*.foo.com' -> '.foo.com'
+                if host.endswith(suffix) and host.count('.') == suffix.count('.'):
+                    return True
+            elif name == host:
+                return True
+        return False
+
+    def public_key_info(self, cert):
+        """Return (type, bits, is_weak) for the certificate's public key."""
+        key = cert.public_key()
+        if isinstance(key, rsa.RSAPublicKey):
+            return 'RSA', key.key_size, key.key_size < 2048
+        if isinstance(key, dsa.DSAPublicKey):
+            return 'DSA', key.key_size, key.key_size < 2048
+        if isinstance(key, ec.EllipticCurvePublicKey):
+            return 'EC ({})'.format(key.curve.name), key.curve.key_size, key.curve.key_size < 256
+        return type(key).__name__, None, False
 
     def border_msg(self, message):
         """Print the message in the box."""
@@ -91,8 +254,8 @@ class SSLChecker:
         result = h + '\n' "|" + message + "|"'\n' + h
         print(result)
 
-    def analyze_ssl(self, host, context, user_args):
-        """Analyze the security of the SSL certificate."""
+    def analyze_ssl(self, host, data, user_args):
+        """Pull a grade and vulnerability report for the host from SSL Labs."""
         try:
             from urllib.request import urlopen
         except ImportError:
@@ -122,276 +285,316 @@ class SSLChecker:
         if user_args.verbose:
             print('{}Analyze report message: {}{}\n'.format(Clr.YELLOW, endpoint_data['statusMessage'], Clr.RST))
 
-        # if the certificate is invalid
+        # The grade only makes sense if the cert is valid for the name.
         if endpoint_data['statusMessage'] == 'Certificate not valid for domain name':
-            return context
+            return data
 
-        context[host]['grade'] = main_request['endpoints'][0]['grade']
-        context[host]['poodle_vuln'] = endpoint_data['details']['poodle']
-        context[host]['heartbleed_vuln'] = endpoint_data['details']['heartbleed']
-        context[host]['heartbeat_vuln'] = endpoint_data['details']['heartbeat']
-        context[host]['freak_vuln'] = endpoint_data['details']['freak']
-        context[host]['logjam_vuln'] = endpoint_data['details']['logjam']
-        context[host]['drownVulnerable'] = endpoint_data['details']['drownVulnerable']
-
-        return context
+        details = endpoint_data['details']
+        data['grade'] = main_request['endpoints'][0]['grade']
+        data['poodle_vuln'] = details['poodle']
+        data['heartbleed_vuln'] = details['heartbleed']
+        data['heartbeat_vuln'] = details['heartbeat']
+        data['freak_vuln'] = details['freak']
+        data['logjam_vuln'] = details['logjam']
+        data['drownVulnerable'] = details['drownVulnerable']
+        return data
 
     def get_cert_sans(self, x509cert):
-        """
-        Get Subject Alt Names from Certificate using cryptography library.
-        """
+        """Subject Alternative Names as a single, csv-safe string."""
         san = ''
         try:
-            # Get the Subject Alternative Name extension
-            san_extension = x509cert.extensions.get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
-            if san_extension:
-                san_names = san_extension.value
-                # Convert all SAN types to strings
-                san_list = []
-                for name in san_names:
-                    if hasattr(name, 'value'):
-                        san_list.append(str(name.value))
-                    else:
-                        san_list.append(str(name))
-                san = '; '.join(san_list)
+            ext = x509cert.extensions.get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            names = [str(getattr(name, 'value', name)) for name in ext.value]
+            san = '; '.join(names)
         except x509.extensions.ExtensionNotFound:
-            # No SAN extension found
             pass
 
-        # replace commas to not break csv output
-        san = san.replace(',', ';')
-        return san
+        # commas would split our csv columns
+        return san.replace(',', ';')
 
-    def get_cert_info(self, host, cert, resolved_ip, tls_version=None):
-        """Get all the information about cert and create a JSON file."""
-        context = {}
-
-        # Get subject information
+    def get_cert_info(self, host, conn, user_args):
+        """Turn a certificate into the dict we report on."""
+        cert = conn['cert']
         subject = cert.subject
         issuer = cert.issuer
+        context = {}
+
+        def first(name, oid):
+            attrs = name.get_attributes_for_oid(oid)
+            return attrs[0].value if attrs else 'N/A'
 
         context['host'] = host
-        context['resolved_ip'] = resolved_ip
-        context['tls_version'] = tls_version
-
-        # Get common name from subject
-        cn_attr = subject.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
-        context['issued_to'] = cn_attr[0].value if cn_attr else 'N/A'
-
-        # Get organization from subject
-        o_attr = subject.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
-        context['issued_o'] = o_attr[0].value if o_attr else 'N/A'
-
-        # Get issuer information
-        issuer_c_attr = issuer.get_attributes_for_oid(x509.NameOID.COUNTRY_NAME)
-        context['issuer_c'] = issuer_c_attr[0].value if issuer_c_attr else 'N/A'
-
-        issuer_o_attr = issuer.get_attributes_for_oid(x509.NameOID.ORGANIZATION_NAME)
-        context['issuer_o'] = issuer_o_attr[0].value if issuer_o_attr else 'N/A'
-
-        issuer_ou_attr = issuer.get_attributes_for_oid(x509.NameOID.ORGANIZATIONAL_UNIT_NAME)
-        context['issuer_ou'] = issuer_ou_attr[0].value if issuer_ou_attr else 'N/A'
-
-        issuer_cn_attr = issuer.get_attributes_for_oid(x509.NameOID.COMMON_NAME)
-        context['issuer_cn'] = issuer_cn_attr[0].value if issuer_cn_attr else 'N/A'
-
+        context['resolved_ip'] = conn['resolved_ip']
+        context['tls_version'] = conn['tls_version']
+        context['issued_to'] = first(subject, x509.NameOID.COMMON_NAME)
+        context['issued_o'] = first(subject, x509.NameOID.ORGANIZATION_NAME)
+        context['issuer_c'] = first(issuer, x509.NameOID.COUNTRY_NAME)
+        context['issuer_o'] = first(issuer, x509.NameOID.ORGANIZATION_NAME)
+        context['issuer_ou'] = first(issuer, x509.NameOID.ORGANIZATIONAL_UNIT_NAME)
+        context['issuer_cn'] = first(issuer, x509.NameOID.COMMON_NAME)
         context['cert_sn'] = str(cert.serial_number)
         context['cert_sha1'] = cert.fingerprint(hashes.SHA1()).hex()
+        context['cert_sha256'] = cert.fingerprint(hashes.SHA256()).hex()
         context['cert_alg'] = cert.signature_algorithm_oid._name
         context['cert_ver'] = cert.version.value
         context['cert_sans'] = self.get_cert_sans(cert)
         context['cert_exp'] = cert.not_valid_after_utc < datetime.now(timezone.utc)
-        context['cert_valid'] = not context['cert_exp']
 
-        # Valid from
+        key_type, key_bits, weak_key = self.public_key_info(cert)
+        sig_hash = cert.signature_hash_algorithm.name if cert.signature_hash_algorithm else 'N/A'
+        context['pub_key_type'] = key_type
+        context['pub_key_bits'] = key_bits
+        context['sig_hash'] = sig_hash
+        context['weak_key'] = weak_key
+        context['weak_sig'] = sig_hash.lower() in ('sha1', 'md5')
+
+        context['cipher'] = conn['cipher'][0] if conn['cipher'] else None
+        context['chain_length'] = conn['chain_length']
+        context['cert_trusted'] = conn['trusted']
+        context['hostname_valid'] = self.host_matches_cert(host, cert)
+        context['self_signed'] = subject == issuer
+        context['validation_error'] = conn['validation_error']
+
+        # "valid" means it is in date, the chain checks out and the name matches.
+        context['cert_valid'] = (not context['cert_exp'] and context['cert_trusted']
+                                 and context['hostname_valid'])
+
         context['valid_from'] = cert.not_valid_before_utc.strftime('%Y-%m-%d')
-
-        # Valid till
         context['valid_till'] = cert.not_valid_after_utc.strftime('%Y-%m-%d')
-
-        # Validity days
         context['validity_days'] = (cert.not_valid_after_utc - cert.not_valid_before_utc).days
 
-        # Validity in days from now
         now = datetime.now(timezone.utc)
         context['days_left'] = (cert.not_valid_after_utc - now).days
-
-        # Valid days left
-        context['valid_days_to_expire'] = (cert.not_valid_after_utc - datetime.now(timezone.utc)).days
-
-        if context['cert_exp']:
-            self.total_expired += 1
-        else:
-            self.total_valid += 1
-
-        # If the certificate has less than 15 days validity
-        if context['valid_days_to_expire'] <= 15:
-            self.total_warning += 1
-
+        context['valid_days_to_expire'] = context['days_left']
         return context
 
-    def print_status(self, host, context, analyze=False):
-        """Print all the usefull info about host."""
-        print('\t{}[\u2713]{} {}\n\t{}'.format(Clr.GREEN if context[host]['cert_valid'] else Clr.RED, Clr.RST, host, '-' * (len(host) + 5)))
-        print('\t\tIssued domain: {}'.format(context[host]['issued_to']))
-        print('\t\tIssued to: {}'.format(context[host]['issued_o']))
-        print('\t\tIssued by: {} ({})'.format(context[host]['issuer_o'], context[host]['issuer_c']))
-        print('\t\tServer IP: {}'.format(context[host]['resolved_ip']))
-        print('\t\tValid from: {}'.format(context[host]['valid_from']))
-        print('\t\tValid to: {} ({} days left)'.format(context[host]['valid_till'], context[host]['valid_days_to_expire']))
-        print('\t\tValidity days: {}'.format(context[host]['validity_days']))
-        print('\t\tTLS Version: {}'.format(context[host]['tls_version']))
-        print('\t\tCertificate valid: {}'.format(context[host]['cert_valid']))
-        print('\t\tCertificate S/N: {}'.format(context[host]['cert_sn']))
-        print('\t\tCertificate SHA1 FP: {}'.format(context[host]['cert_sha1']))
-        print('\t\tCertificate version: {}'.format(context[host]['cert_ver']))
-        print('\t\tCertificate algorithm: {}'.format(context[host]['cert_alg']))
+    def check_host(self, host, port, user_args):
+        """Everything we do for a single host. Returns the dict or 'failed'."""
+        try:
+            conn = self.get_cert(host, port, user_args)
+            data = self.get_cert_info(host, conn, user_args)
+            data['tcp_port'] = int(port)
 
-        if analyze:
-            print('\t\tCertificate grade: {}'.format(context[host]['grade']))
-            print('\t\tPoodle vulnerability: {}'.format(context[host]['poodle_vuln']))
-            print('\t\tHeartbleed vulnerability: {}'.format(context[host]['heartbleed_vuln']))
-            print('\t\tHeartbeat vulnerability: {}'.format(context[host]['heartbeat_vuln']))
-            print('\t\tFreak vulnerability: {}'.format(context[host]['freak_vuln']))
-            print('\t\tLogjam vulnerability: {}'.format(context[host]['logjam_vuln']))
-            print('\t\tDrown vulnerability: {}'.format(context[host]['drownVulnerable']))
+            if user_args.protocols:
+                offered = self.supported_protocols(host, port, user_args)
+                data['supported_protocols'] = offered
+                data['weak_protocols'] = [label for label, _v, weak in TLS_VERSIONS
+                                          if weak and offered.get(label)]
 
-        print('\t\tExpired: {}'.format(context[host]['cert_exp']))
+            if user_args.analyze:
+                self.analyze_ssl(host, data, user_args)
+
+            return data, None
+        except ssl.SSLError:
+            return 'failed', 'Misconfigured SSL/TLS'
+        except Exception as error:
+            return 'failed', str(error)
+
+    def has_problem(self, data, warning_days):
+        """True if the host is worth flagging (used by --quiet)."""
+        if data == 'failed':
+            return True
+        return not data['cert_valid'] or data['valid_days_to_expire'] <= warning_days
+
+    def print_status(self, host, data, user_args):
+        """Print everything we know about one host."""
+        ok = lambda flag: '{}{}{}'.format(Clr.GREEN if flag else Clr.RED, flag, Clr.RST)
+
+        print('\t{}[✓]{} {}\n\t{}'.format(
+            Clr.GREEN if data['cert_valid'] else Clr.RED, Clr.RST, host, '-' * (len(host) + 5)))
+        print('\t\tIssued domain: {}'.format(data['issued_to']))
+        print('\t\tIssued to: {}'.format(data['issued_o']))
+        print('\t\tIssued by: {} ({})'.format(data['issuer_o'], data['issuer_c']))
+        print('\t\tServer IP: {}'.format(data['resolved_ip']))
+        print('\t\tValid from: {}'.format(data['valid_from']))
+        print('\t\tValid to: {} ({} days left)'.format(data['valid_till'], data['valid_days_to_expire']))
+        print('\t\tValidity days: {}'.format(data['validity_days']))
+        print('\t\tTLS Version: {}'.format(data['tls_version']))
+        print('\t\tCipher: {}'.format(data['cipher']))
+        print('\t\tChain length: {}'.format(data['chain_length']))
+        print('\t\tCertificate trusted: {}'.format(ok(data['cert_trusted'])))
+        print('\t\tHostname matches: {}'.format(ok(data['hostname_valid'])))
+        if data['self_signed']:
+            print('\t\t{}Self-signed certificate{}'.format(Clr.YELLOW, Clr.RST))
+        if data['validation_error']:
+            print('\t\t{}Validation note: {}{}'.format(Clr.YELLOW, data['validation_error'], Clr.RST))
+        print('\t\tCertificate valid: {}'.format(data['cert_valid']))
+        print('\t\tCertificate S/N: {}'.format(data['cert_sn']))
+        print('\t\tCertificate SHA1 FP: {}'.format(data['cert_sha1']))
+        print('\t\tCertificate SHA256 FP: {}'.format(data['cert_sha256']))
+        print('\t\tCertificate version: {}'.format(data['cert_ver']))
+        print('\t\tCertificate algorithm: {}'.format(data['cert_alg']))
+
+        key = '{} {} bits'.format(data['pub_key_type'], data['pub_key_bits']) if data['pub_key_bits'] \
+            else data['pub_key_type']
+        if data['weak_key']:
+            key += ' {}(weak){}'.format(Clr.RED, Clr.RST)
+        print('\t\tPublic key: {}'.format(key))
+        sig = data['sig_hash'] + (' {}(weak){}'.format(Clr.RED, Clr.RST) if data['weak_sig'] else '')
+        print('\t\tSignature hash: {}'.format(sig))
+
+        if 'supported_protocols' in data:
+            offered = [label for label, on in data['supported_protocols'].items() if on]
+            print('\t\tSupported protocols: {}'.format(', '.join(offered) if offered else 'none'))
+            if data['weak_protocols']:
+                print('\t\t{}Weak protocols enabled: {}{}'.format(
+                    Clr.RED, ', '.join(data['weak_protocols']), Clr.RST))
+
+        if user_args.analyze:
+            print('\t\tCertificate grade: {}'.format(data.get('grade')))
+            print('\t\tPoodle vulnerability: {}'.format(data.get('poodle_vuln')))
+            print('\t\tHeartbleed vulnerability: {}'.format(data.get('heartbleed_vuln')))
+            print('\t\tHeartbeat vulnerability: {}'.format(data.get('heartbeat_vuln')))
+            print('\t\tFreak vulnerability: {}'.format(data.get('freak_vuln')))
+            print('\t\tLogjam vulnerability: {}'.format(data.get('logjam_vuln')))
+            print('\t\tDrown vulnerability: {}'.format(data.get('drownVulnerable')))
+
+        print('\t\tExpired: {}'.format(data['cert_exp']))
         print('\t\tCertificate SANs: ')
-
-        for san in context[host]['cert_sans'].split(';'):
+        for san in data['cert_sans'].split(';'):
             print('\t\t \\_ {}'.format(san.strip()))
-
         print('\n')
 
     def show_result(self, user_args):
-        """Get the context."""
+        """Run the checks for every host and print/return the result."""
         context = {}
         start_time = datetime.now(timezone.utc)
-        hosts = user_args.hosts
+        text_output = not user_args.json_true and not user_args.summary_true
 
-        if not user_args.json_true and not user_args.summary_true:
+        # Split host:port and drop duplicates, keeping the original order.
+        hosts = []
+        seen = set()
+        for raw in user_args.hosts:
+            host, port = self.filter_hostname(raw)
+            if host not in seen:
+                seen.add(host)
+                hosts.append((host, port))
+
+        concurrency = max(1, getattr(user_args, 'concurrency', 1))
+        if user_args.socks and concurrency > 1:
+            if not user_args.json_true:
+                print('{}SOCKS proxy is global; running one host at a time.{}\n'.format(Clr.YELLOW, Clr.RST))
+            concurrency = 1
+
+        if text_output:
             self.border_msg(' Analyzing {} host(s) '.format(len(hosts)))
-
         if not user_args.json_true and user_args.analyze:
             print('{}Warning: -a/--analyze is enabled. It takes more time...{}\n'.format(Clr.YELLOW, Clr.RST))
 
-        for host in hosts:
+        def work(item):
+            host, port = item
             if user_args.verbose:
                 print('{}Working on host: {}{}\n'.format(Clr.YELLOW, host, Clr.RST))
+            return (host, port) + self.check_host(host, port, user_args)
 
-            host, port = self.filter_hostname(host)
+        try:
+            if concurrency > 1:
+                with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                    results = list(pool.map(work, hosts))
+            else:
+                results = [work(item) for item in hosts]
+        except KeyboardInterrupt:
+            print('{}Canceling script...{}\n'.format(Clr.YELLOW, Clr.RST))
+            sys.exit(1)
 
-            # Check duplication
-            if host in context.keys():
+        # Tally and print on the main thread, so the counters stay sane.
+        for host, port, data, error in results:
+            context[host] = data
+            if data == 'failed':
+                self.total_failed += 1
+                if text_output:
+                    print('\t{}[✗]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
                 continue
 
-            try:
-                # Check if socks should be used
-                if user_args.socks:
-                    if user_args.verbose:
-                        print('{}Socks proxy enabled, connecting via proxy{}\n'.format(Clr.YELLOW, Clr.RST))
+            if data['cert_exp']:
+                self.total_expired += 1
+            else:
+                self.total_valid += 1
+            if not data['cert_trusted']:
+                self.total_untrusted += 1
+            if not data['cert_exp'] and data['valid_days_to_expire'] <= user_args.warning_days:
+                self.total_warning += 1
 
-                    socks_host, socks_port = self.filter_hostname(user_args.socks)
-                    cert, resolved_ip, tls_version = self.get_cert(host, port, socks_host, socks_port, user_args.timeout)
-                else:
-                    cert, resolved_ip, tls_version = self.get_cert(host, port, timeout=user_args.timeout)
-
-                context[host] = self.get_cert_info(host, cert, resolved_ip, tls_version)
-                context[host]['tcp_port'] = int(port)
-
-                # Analyze the certificate if enabled
-                if user_args.analyze:
-                    context = self.analyze_ssl(host, context, user_args)
-
-                if not user_args.json_true and not user_args.summary_true:
-                    self.print_status(host, context, user_args.analyze)
-            except ssl.SSLError:
-                context[host] = 'failed'
-                if not user_args.json_true:
-                    print('\t{}[\u2717]{} {:<20s} Failed: Misconfigured SSL/TLS\n'.format(Clr.RED, Clr.RST, host))
-                    self.total_failed += 1
-            except Exception as error:
-                context[host] = 'failed'
-                if not user_args.json_true:
-                    print('\t{}[\u2717]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
-                    self.total_failed += 1
-            except KeyboardInterrupt:
-                print('{}Canceling script...{}\n'.format(Clr.YELLOW, Clr.RST))
-                sys.exit(1)
+            if text_output and (not user_args.quiet or self.has_problem(data, user_args.warning_days)):
+                self.print_status(host, data, user_args)
 
         if not user_args.json_true:
-            self.border_msg(' Successful: {} | Failed: {} | Valid: {} | Warning: {} | Expired: {} | Duration: {} '.format(
-                len(hosts) - self.total_failed, self.total_failed, self.total_valid,
-                self.total_warning, self.total_expired, datetime.now(timezone.utc) - start_time))
-            if user_args.summary_true:
-                # Exit the script just
-                return
+            self.border_msg(' Successful: {} | Failed: {} | Valid: {} | Warning: {} | '
+                            'Expired: {} | Untrusted: {} | Duration: {} '.format(
+                                len(hosts) - self.total_failed, self.total_failed, self.total_valid,
+                                self.total_warning, self.total_expired, self.total_untrusted,
+                                datetime.now(timezone.utc) - start_time))
 
-        # CSV export if -c/--csv is specified
         if user_args.csv_enabled:
             self.export_csv(context, user_args.csv_enabled, user_args)
-
-        # HTML export if -x/--html is specified
         if user_args.html_true:
             self.export_html(context)
 
-        # While using the script as a module
+        # When imported as a module, hand the data back as JSON.
         if __name__ != '__main__':
             return json.dumps(context)
 
-        # Enable JSON output if -j/--json argument specified
         if user_args.json_true:
             print(json.dumps(context))
-
         if user_args.json_save_true:
             for host in context.keys():
                 with open(host + '.json', 'w', encoding='UTF-8') as fp:
                     fp.write(json.dumps(context[host]))
 
+        if getattr(user_args, 'exit_code', False):
+            sys.exit(self.exit_status())
+
+    def exit_status(self):
+        """Nagios-style code: 2 critical, 1 warning, 0 healthy."""
+        if self.total_failed or self.total_expired or self.total_untrusted:
+            return 2
+        if self.total_warning:
+            return 1
+        return 0
+
     def export_csv(self, context, filename, user_args):
-        """Export all context results to CSV file."""
-        # prepend dict keys to write column headers
+        """Write every result to a CSV file."""
         if user_args.verbose:
             print('{}Generating CSV export{}\n'.format(Clr.YELLOW, Clr.RST))
 
-        with open(filename, 'w') as csv_file:
-            # Get the first successful host to determine CSV structure
-            sample_host = None
-            for host, data in context.items():
-                if isinstance(data, dict):
-                    sample_host = data
-                    break
+        # Collect the columns from every host so an extra flag (e.g. -p) on one
+        # host doesn't drop its columns from the file.
+        columns = []
+        for data in context.values():
+            if isinstance(data, dict):
+                for key in data:
+                    if key not in columns:
+                        columns.append(key)
 
-            if sample_host:
-                csv_writer = DictWriter(csv_file, sample_host.keys())
-                csv_writer.writeheader()
-                for host in context.keys():
-                    if isinstance(context[host], dict):
-                        csv_writer.writerow(context[host])
-                    else:
-                        # Handle failed hosts by creating a row with 'failed' status
-                        failed_row = {key: 'failed' for key in sample_host.keys()}
-                        failed_row['host'] = host
-                        csv_writer.writerow(failed_row)
-            else:
-                # No successful hosts found, create simple CSV with status column
-                csv_writer = DictWriter(csv_file, ['host', 'status'])
-                csv_writer.writeheader()
-                for host in context.keys():
-                    csv_writer.writerow({'host': host, 'status': 'failed'})
+        with open(filename, 'w') as csv_file:
+            if not columns:
+                writer = DictWriter(csv_file, ['host', 'status'])
+                writer.writeheader()
+                for host in context:
+                    writer.writerow({'host': host, 'status': 'failed'})
+                return
+
+            writer = DictWriter(csv_file, columns, extrasaction='ignore')
+            writer.writeheader()
+            for host, data in context.items():
+                if not isinstance(data, dict):
+                    writer.writerow({'host': host, **{c: 'failed' for c in columns if c != 'host'}})
+                    continue
+                row = dict(data)
+                for key, value in row.items():
+                    if isinstance(value, (dict, list)):
+                        row[key] = json.dumps(value).replace(',', ';')
+                writer.writerow(row)
 
     def export_html(self, context):
-        """Export JSON to HTML."""
+        """Dump the results to a timestamped HTML file."""
         html = json2html.convert(json=context)
         file_name = datetime.strftime(datetime.now(timezone.utc), '%Y_%m_%d_%H_%M_%S')
         with open('{}.html'.format(file_name), 'w') as html_file:
             html_file.write(html)
 
-        return
-
     def filter_hostname(self, host):
-        """Remove unused characters and split by address and port."""
+        """Strip the scheme/slashes and split off the port (defaults to 443)."""
         host = host.replace('http://', '').replace('https://', '').replace('/', '')
         port = 443
         if ':' in host:
@@ -399,28 +602,46 @@ class SSLChecker:
 
         return host, port
 
+    def read_host_file(self, path):
+        """Read hosts from a file (or stdin with '-'), ignoring blanks/comments."""
+        if path == '-':
+            lines = sys.stdin.read().splitlines()
+        else:
+            with open(path) as f:
+                lines = f.read().splitlines()
+
+        return [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
+
     def get_args(self, json_args={}):
         """Set argparse options."""
         parser = ArgumentParser(prog='ssl_checker.py', add_help=False,
                                 description="""Collects useful information about the given host's SSL certificates.""")
 
+        # Module use: take the host list (and optional knobs) and use defaults
+        # for the rest.
         if len(json_args) > 0:
-            args = parser.parse_args()
-            setattr(args, 'json_true', True)
-            setattr(args, 'verbose', False)
-            setattr(args, 'csv_enabled', False)
-            setattr(args, 'html_true', False)
-            setattr(args, 'json_save_true', False)
-            setattr(args, 'socks', False)
-            setattr(args, 'analyze', False)
-            setattr(args, 'hosts', json_args['hosts'])
+            args = parser.parse_args([])
+            defaults = {
+                'json_true': True, 'verbose': False, 'csv_enabled': False, 'html_true': False,
+                'json_save_true': False, 'socks': False, 'analyze': False, 'summary_true': False,
+                'quiet': False, 'exit_code': False, 'ca_file': None,
+                'protocols': json_args.get('protocols', False),
+                'starttls': json_args.get('starttls', None),
+                'concurrency': json_args.get('concurrency', 1),
+                'warning_days': json_args.get('warning_days', 15),
+                'timeout': json_args.get('timeout', 5),
+                'retries': json_args.get('retries', 2),
+            }
+            for key, value in defaults.items():
+                setattr(args, key, value)
+            args.hosts = json_args['hosts']
             return args
 
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('-H', '--host', dest='hosts', nargs='*',
                            required=False, help='Hosts as input separated by space')
         group.add_argument('-f', '--host-file', dest='host_file',
-                           required=False, help='Hosts as input from a file')
+                           required=False, help="Hosts from a file ('-' reads stdin)")
         parser.add_argument('-s', '--socks', dest='socks',
                             default=False, metavar='HOST:PORT',
                             help='Enable SOCKS proxy for connection')
@@ -442,9 +663,33 @@ class SSLChecker:
         parser.add_argument('-t', '--timeout', dest='timeout',
                             type=int, default=5,
                             help='Timeout for the connection in seconds (default: 5)')
+        parser.add_argument('-r', '--retries', dest='retries',
+                            type=int, default=2, metavar='N',
+                            help='Retries on a dropped connection (default: 2)')
         parser.add_argument('-a', '--analyze', dest='analyze',
                             default=False, action='store_true',
                             help='Enable SSL security analysis on the host')
+        parser.add_argument('-p', '--protocols', dest='protocols',
+                            default=False, action='store_true',
+                            help='Probe which TLS versions (1.0-1.3) the host accepts')
+        parser.add_argument('-T', '--starttls', dest='starttls',
+                            default=None, metavar='PROTO', choices=STARTTLS_PROTOCOLS,
+                            help='Use STARTTLS first (smtp/imap/pop3/ftp/xmpp)')
+        parser.add_argument('--ca-file', dest='ca_file',
+                            default=None, metavar='FILE',
+                            help='Verify against this CA bundle instead of the system store')
+        parser.add_argument('-n', '--concurrency', dest='concurrency',
+                            type=int, default=1, metavar='N',
+                            help='Number of hosts to check in parallel (default: 1)')
+        parser.add_argument('-w', '--warning-days', dest='warning_days',
+                            type=int, default=15, metavar='DAYS',
+                            help='Days-to-expiry threshold for a warning (default: 15)')
+        parser.add_argument('-q', '--quiet', dest='quiet',
+                            default=False, action='store_true',
+                            help='Only print hosts that have a problem')
+        parser.add_argument('-e', '--exit-code', dest='exit_code',
+                            default=False, action='store_true',
+                            help='Exit non-zero for monitoring (1=warning, 2=critical)')
         parser.add_argument('-v', '--verbose', dest='verbose',
                             default=False, action='store_true',
                             help='Enable verbose to see what is going on')
@@ -454,16 +699,12 @@ class SSLChecker:
 
         args = parser.parse_args()
 
-        # Get hosts from file if provided
         if args.host_file:
-            with open(args.host_file) as f:
-                args.hosts = f.read().splitlines()
+            args.hosts = self.read_host_file(args.host_file)
 
-        # Checks hosts list
-        if isinstance(args.hosts, list):
-            if len(args.hosts) == 0:
-                parser.print_help()
-                sys.exit(0)
+        if isinstance(args.hosts, list) and len(args.hosts) == 0:
+            parser.print_help()
+            sys.exit(0)
 
         return args
 
