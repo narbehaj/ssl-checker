@@ -387,6 +387,15 @@ class SSLChecker:
             return data, None
         except ssl.SSLError:
             return 'failed', 'Misconfigured SSL/TLS'
+        except socket.gaierror:
+            return 'failed', 'DNS lookup failed (host not found)'
+        except (TimeoutError, socket.timeout):
+            return 'failed', 'Connection timed out'
+        except ConnectionRefusedError:
+            return 'failed', 'Connection refused'
+        except OSError as error:
+            # Show the readable part of the OS error, not the raw errno noise.
+            return 'failed', error.strerror or str(error)
         except Exception as error:
             return 'failed', str(error)
 
