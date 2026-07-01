@@ -20,12 +20,6 @@ Highlights:
 - **Resilient by default** — IPv4/IPv6, automatic retries on dropped connections, host lists from a file or stdin (blank lines and `#` comments ignored), and an optional custom CA bundle (`--ca-file`).
 
 
-## Online API Based Version
-
-You can simply go to [https://ssl-checker.io](https://ssl-checker.io) or use the following curl command:
-
-`curl https://ssl-checker.io/api/v1/check/example.com`
-
 ## Requirements
 
 `pip install -r requirements.txt`
