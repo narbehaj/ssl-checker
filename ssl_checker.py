@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import socket
 import sys
 import json
@@ -16,7 +17,6 @@ try:
     from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric import rsa, dsa, ec
-    from json2html import *
 except ImportError:
     print('Please install required modules: pip install -r requirements.txt')
     sys.exit(1)
@@ -266,21 +266,30 @@ class SSLChecker:
             if user_args.verbose:
                 print('{}Requesting analyze to {}{}\n'.format(Clr.YELLOW, api_url, Clr.RST))
 
-            main_request = json.loads(urlopen(api_url + 'analyze?host={}'.format(host)).read().decode('utf-8'))
-            if main_request['status'] in ('DNS', 'IN_PROGRESS'):
+            main_request = json.loads(urlopen(
+                api_url + 'analyze?host={}'.format(host), timeout=user_args.timeout).read().decode('utf-8'))
+            status = main_request.get('status')
+            if status in ('DNS', 'IN_PROGRESS'):
                 if user_args.verbose:
                     print('{}Analyze waiting for reports to be finished (5 secs){}\n'.format(Clr.YELLOW, Clr.RST))
 
                 sleep(5)
                 continue
-            elif main_request['status'] == 'READY':
+            elif status == 'READY':
                 if user_args.verbose:
                     print('{}Analyze is ready{}\n'.format(Clr.YELLOW, Clr.RST))
 
                 break
+            else:
+                # ERROR or any unexpected status: SSL Labs can't grade this host.
+                if user_args.verbose:
+                    print('{}Analyze failed: {}{}\n'.format(
+                        Clr.YELLOW, main_request.get('statusMessage', status), Clr.RST))
+
+                return data
 
         endpoint_data = json.loads(urlopen(api_url + 'getEndpointData?host={}&s={}'.format(
-            host, main_request['endpoints'][0]['ipAddress'])).read().decode('utf-8'))
+            host, main_request['endpoints'][0]['ipAddress']), timeout=user_args.timeout).read().decode('utf-8'))
 
         if user_args.verbose:
             print('{}Analyze report message: {}{}\n'.format(Clr.YELLOW, endpoint_data['statusMessage'], Clr.RST))
@@ -361,6 +370,8 @@ class SSLChecker:
 
         context['valid_from'] = cert.not_valid_before_utc.strftime('%Y-%m-%d')
         context['valid_till'] = cert.not_valid_after_utc.strftime('%Y-%m-%d')
+        context['not_before_ts'] = int(cert.not_valid_before_utc.timestamp())
+        context['not_after_ts'] = int(cert.not_valid_after_utc.timestamp())
         context['validity_days'] = (cert.not_valid_after_utc - cert.not_valid_before_utc).days
 
         now = datetime.now(timezone.utc)
@@ -404,6 +415,85 @@ class SSLChecker:
         if data == 'failed':
             return True
         return not data['cert_valid'] or data['valid_days_to_expire'] <= warning_days
+
+    def problem_summary(self, data, warning_days):
+        """Return (level, reason) for a flagged host, or None if it's healthy.
+
+        level is 'critical' (down / invalid / expired) or 'warning' (expiring soon).
+        """
+        reasons = []
+        level = 'warning'
+        if data['cert_exp']:
+            reasons.append('certificate expired')
+            level = 'critical'
+        elif data['valid_days_to_expire'] <= warning_days:
+            reasons.append('expires in {} day(s)'.format(data['valid_days_to_expire']))
+        if not data['cert_trusted']:
+            reasons.append('untrusted chain')
+            level = 'critical'
+        if not data['hostname_valid']:
+            reasons.append('hostname mismatch')
+            level = 'critical'
+
+        if not reasons:
+            return None
+        return level, ', '.join(reasons)
+
+    def notify(self, problems, user_args):
+        """Send a summary of the flagged hosts to Slack/Telegram, if configured.
+
+        Tokens come from the CLI flags or, preferably, the environment so they
+        stay out of shell history and the process list.
+        """
+        slack = user_args.slack_webhook or os.environ.get('SSL_CHECKER_SLACK_WEBHOOK')
+        tg_token = user_args.telegram_token or os.environ.get('SSL_CHECKER_TELEGRAM_TOKEN')
+        tg_chat = user_args.telegram_chat_id or os.environ.get('SSL_CHECKER_TELEGRAM_CHAT_ID')
+
+        if not slack and not (tg_token and tg_chat):
+            return
+        if not problems:
+            if user_args.verbose:
+                print('{}No problems found; skipping notification{}\n'.format(Clr.YELLOW, Clr.RST))
+            return
+
+        lines = ['*SSL Checker:* {} host(s) need attention'.format(len(problems))]
+        for host, port, level, reason in problems:
+            mark = '\U0001F534' if level == 'critical' else '\U0001F7E0'   # red / orange circle
+            lines.append('{} {}:{} — {}'.format(mark, host, port, reason))
+        message = '\n'.join(lines)
+
+        if slack:
+            self.send_slack(slack, message, user_args)
+        if tg_token and tg_chat:
+            self.send_telegram(tg_token, tg_chat, message, user_args)
+
+    def post_json(self, url, payload, timeout):
+        """POST a JSON body and return the response (raises on HTTP/URL error)."""
+        from urllib.request import Request, urlopen
+
+        body = json.dumps(payload).encode('utf-8')
+        request = Request(url, data=body, headers={'Content-Type': 'application/json'})
+        return urlopen(request, timeout=timeout)
+
+    def send_slack(self, webhook, message, user_args):
+        """Post the message to a Slack incoming-webhook URL."""
+        try:
+            self.post_json(webhook, {'text': message}, user_args.timeout)
+            if user_args.verbose:
+                print('{}Slack notification sent{}\n'.format(Clr.YELLOW, Clr.RST))
+        except Exception as err:
+            print('{}Slack notification failed: {}{}\n'.format(Clr.RED, err, Clr.RST))
+
+    def send_telegram(self, token, chat_id, message, user_args):
+        """Post the message to a Telegram chat via the Bot API."""
+        url = 'https://api.telegram.org/bot{}/sendMessage'.format(token)
+        payload = {'chat_id': chat_id, 'text': message, 'parse_mode': 'Markdown'}
+        try:
+            self.post_json(url, payload, user_args.timeout)
+            if user_args.verbose:
+                print('{}Telegram notification sent{}\n'.format(Clr.YELLOW, Clr.RST))
+        except Exception as err:
+            print('{}Telegram notification failed: {}{}\n'.format(Clr.RED, err, Clr.RST))
 
     def print_status(self, host, data, user_args):
         """Print everything we know about one host."""
@@ -468,7 +558,8 @@ class SSLChecker:
         """Run the checks for every host and print/return the result."""
         context = {}
         start_time = datetime.now(timezone.utc)
-        text_output = not user_args.json_true and not user_args.summary_true
+        prometheus = getattr(user_args, 'prometheus', False)
+        text_output = not user_args.json_true and not user_args.summary_true and not prometheus
 
         # Split host:port and drop duplicates, keeping the original order.
         hosts = []
@@ -487,7 +578,7 @@ class SSLChecker:
 
         if text_output:
             self.border_msg(' Analyzing {} host(s) '.format(len(hosts)))
-        if not user_args.json_true and user_args.analyze:
+        if not user_args.json_true and not prometheus and user_args.analyze:
             print('{}Warning: -a/--analyze is enabled. It takes more time...{}\n'.format(Clr.YELLOW, Clr.RST))
 
         def work(item):
@@ -507,10 +598,12 @@ class SSLChecker:
             sys.exit(1)
 
         # Tally and print on the main thread, so the counters stay sane.
+        problems = []
         for host, port, data, error in results:
             context[host] = data
             if data == 'failed':
                 self.total_failed += 1
+                problems.append((host, port, 'critical', 'failed: {}'.format(error)))
                 if text_output:
                     print('\t{}[✗]{} {:<20s} Failed: {}\n'.format(Clr.RED, Clr.RST, host, error))
                 continue
@@ -524,25 +617,34 @@ class SSLChecker:
             if not data['cert_exp'] and data['valid_days_to_expire'] <= user_args.warning_days:
                 self.total_warning += 1
 
+            summary = self.problem_summary(data, user_args.warning_days)
+            if summary:
+                problems.append((host, port) + summary)
+
             if text_output and (not user_args.quiet or self.has_problem(data, user_args.warning_days)):
                 self.print_status(host, data, user_args)
 
-        if not user_args.json_true:
+        if not user_args.json_true and not prometheus:
             self.border_msg(' Successful: {} | Failed: {} | Valid: {} | Warning: {} | '
                             'Expired: {} | Untrusted: {} | Duration: {} '.format(
                                 len(hosts) - self.total_failed, self.total_failed, self.total_valid,
                                 self.total_warning, self.total_expired, self.total_untrusted,
                                 datetime.now(timezone.utc) - start_time))
 
+        self.notify(problems, user_args)
+
         if user_args.csv_enabled:
             self.export_csv(context, user_args.csv_enabled, user_args)
         if user_args.html_true:
             self.export_html(context)
 
-        # When imported as a module, hand the data back as JSON.
+        # When imported as a module, hand the data back (Prometheus text if
+        # asked for, otherwise JSON).
         if __name__ != '__main__':
-            return json.dumps(context)
+            return self.render_prometheus(results) if prometheus else json.dumps(context)
 
+        if prometheus:
+            print(self.render_prometheus(results), end='')
         if user_args.json_true:
             print(json.dumps(context))
         if user_args.json_save_true:
@@ -575,7 +677,7 @@ class SSLChecker:
                     if key not in columns:
                         columns.append(key)
 
-        with open(filename, 'w') as csv_file:
+        with open(filename, 'w', newline='') as csv_file:
             if not columns:
                 writer = DictWriter(csv_file, ['host', 'status'])
                 writer.writeheader()
@@ -595,29 +697,107 @@ class SSLChecker:
                         row[key] = json.dumps(value).replace(',', ';')
                 writer.writerow(row)
 
+    def html_table(self, data):
+        """Render a value as nested HTML tables (no third-party dependency)."""
+        from html import escape
+
+        if isinstance(data, dict):
+            rows = ''.join('<tr><th>{}</th><td>{}</td></tr>'.format(
+                escape(str(key)), self.html_table(value)) for key, value in data.items())
+            return '<table border="1">{}</table>'.format(rows)
+        if isinstance(data, (list, tuple)):
+            return '<ul>{}</ul>'.format(''.join(
+                '<li>{}</li>'.format(self.html_table(item)) for item in data))
+        if isinstance(data, bool):
+            return 'true' if data else 'false'
+        return escape(str(data))
+
     def export_html(self, context):
         """Dump the results to a timestamped HTML file."""
-        html = json2html.convert(json=context)
+        html = self.html_table(context)
         file_name = datetime.strftime(datetime.now(timezone.utc), '%Y_%m_%d_%H_%M_%S')
         with open('{}.html'.format(file_name), 'w') as html_file:
             html_file.write(html)
 
+    def render_prometheus(self, results):
+        """Render the results in Prometheus text exposition format.
+
+        One line per (host, port) with a small, scrape-friendly set of gauges.
+        Alerting on expiry then lives in Prometheus, e.g.
+        `ssl_cert_expiry_days < 15` or `ssl_check_success == 0`.
+        """
+        def esc(value):
+            return str(value).replace('\\', '\\\\').replace('"', '\\"').replace('\n', ' ')
+
+        # name -> (help text, per-host function returning the value, or None to skip)
+        metrics = [
+            ('ssl_check_success', 'Whether the host could be checked (1) or failed (0)',
+             lambda d: 0 if d == 'failed' else 1),
+            ('ssl_cert_valid', 'Certificate is in date, trusted, and matches the host',
+             lambda d: int(d['cert_valid'])),
+            ('ssl_cert_trusted', 'Certificate chain is trusted',
+             lambda d: int(d['cert_trusted'])),
+            ('ssl_cert_hostname_valid', 'Hostname matches the certificate',
+             lambda d: int(d['hostname_valid'])),
+            ('ssl_cert_expired', 'Certificate has expired',
+             lambda d: int(d['cert_exp'])),
+            ('ssl_cert_expiry_days', 'Days until the certificate expires',
+             lambda d: d['days_left']),
+            ('ssl_cert_not_after_timestamp', 'Certificate notAfter as a Unix timestamp',
+             lambda d: d['not_after_ts']),
+            ('ssl_cert_not_before_timestamp', 'Certificate notBefore as a Unix timestamp',
+             lambda d: d['not_before_ts']),
+        ]
+
+        out = []
+        for name, help_text, value_of in metrics:
+            samples = []
+            for host, port, data, _error in results:
+                # Every metric but ssl_check_success needs a parsed certificate.
+                if data == 'failed' and name != 'ssl_check_success':
+                    continue
+                samples.append('{}{{host="{}",port="{}"}} {}'.format(
+                    name, esc(host), esc(port), value_of(data)))
+            if not samples:
+                continue
+            out.append('# HELP {} {}'.format(name, help_text))
+            out.append('# TYPE {} gauge'.format(name))
+            out.extend(samples)
+
+        return '\n'.join(out) + '\n'
+
     def filter_hostname(self, host):
-        """Strip the scheme/slashes and split off the port (defaults to 443)."""
+        """Strip the scheme/slashes and split off the port (defaults to 443).
+
+        Handles IPv6 literals, which must be bracketed when a port is present
+        (e.g. '[2001:db8::1]:443'); a bare IPv6 literal keeps the default port.
+        """
         host = host.replace('http://', '').replace('https://', '').replace('/', '')
         port = 443
-        if ':' in host:
+
+        if host.startswith('['):
+            # Bracketed IPv6, optionally followed by :port
+            addr, _, rest = host[1:].partition(']')
+            host = addr
+            if rest.startswith(':') and rest[1:]:
+                port = rest[1:]
+        elif host.count(':') == 1:
+            # host:port  (a bare IPv6 literal has several colons, so leave it be)
             host, port = host.split(':')
 
         return host, port
 
     def read_host_file(self, path):
         """Read hosts from a file (or stdin with '-'), ignoring blanks/comments."""
-        if path == '-':
-            lines = sys.stdin.read().splitlines()
-        else:
-            with open(path) as f:
-                lines = f.read().splitlines()
+        try:
+            if path == '-':
+                lines = sys.stdin.read().splitlines()
+            else:
+                with open(path) as f:
+                    lines = f.read().splitlines()
+        except OSError as err:
+            print('Could not read host file {}: {}'.format(path, err.strerror or err))
+            sys.exit(1)
 
         return [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
 
@@ -634,6 +814,10 @@ class SSLChecker:
                 'json_true': True, 'verbose': False, 'csv_enabled': False, 'html_true': False,
                 'json_save_true': False, 'socks': False, 'analyze': False, 'summary_true': False,
                 'quiet': False, 'exit_code': False, 'ca_file': None,
+                'prometheus': json_args.get('prometheus', False),
+                'slack_webhook': json_args.get('slack_webhook', None),
+                'telegram_token': json_args.get('telegram_token', None),
+                'telegram_chat_id': json_args.get('telegram_chat_id', None),
                 'protocols': json_args.get('protocols', False),
                 'starttls': json_args.get('starttls', None),
                 'concurrency': json_args.get('concurrency', 1),
@@ -663,6 +847,9 @@ class SSLChecker:
         parser.add_argument('-S', '--summary', dest='summary_true',
                             action='store_true', default=False,
                             help='Enable summary output only')
+        parser.add_argument('-P', '--prometheus', dest='prometheus',
+                            action='store_true', default=False,
+                            help='Output metrics in Prometheus text format')
         parser.add_argument('-x', '--html', dest='html_true',
                             action='store_true', default=False,
                             help='Enable HTML file export')
@@ -684,7 +871,7 @@ class SSLChecker:
         parser.add_argument('-T', '--starttls', dest='starttls',
                             default=None, metavar='PROTO', choices=STARTTLS_PROTOCOLS,
                             help='Use STARTTLS first (smtp/imap/pop3/ftp/xmpp)')
-        parser.add_argument('--ca-file', dest='ca_file',
+        parser.add_argument('-C', '--ca-file', dest='ca_file',
                             default=None, metavar='FILE',
                             help='Verify against this CA bundle instead of the system store')
         parser.add_argument('-n', '--concurrency', dest='concurrency',
@@ -699,6 +886,18 @@ class SSLChecker:
         parser.add_argument('-e', '--exit-code', dest='exit_code',
                             default=False, action='store_true',
                             help='Exit non-zero for monitoring (1=warning, 2=critical)')
+        parser.add_argument('-k', '--slack-webhook', dest='slack_webhook',
+                            default=None, metavar='URL',
+                            help='Notify a Slack webhook about problem hosts '
+                                 '(or set SSL_CHECKER_SLACK_WEBHOOK)')
+        parser.add_argument('-g', '--telegram-token', dest='telegram_token',
+                            default=None, metavar='TOKEN',
+                            help='Telegram bot token for notifications '
+                                 '(or set SSL_CHECKER_TELEGRAM_TOKEN)')
+        parser.add_argument('-i', '--telegram-chat-id', dest='telegram_chat_id',
+                            default=None, metavar='ID',
+                            help='Telegram chat ID for notifications '
+                                 '(or set SSL_CHECKER_TELEGRAM_CHAT_ID)')
         parser.add_argument('-v', '--verbose', dest='verbose',
                             default=False, action='store_true',
                             help='Enable verbose to see what is going on')

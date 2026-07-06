@@ -16,6 +16,8 @@ Highlights:
 - **STARTTLS** (`-T`) — inspect certificates on SMTP, IMAP, POP3, FTP, and XMPP endpoints, not just HTTPS.
 - **Parallel scanning** (`-n`) — check many hosts concurrently.
 - **Monitoring mode** (`-e`, `-q`) — Nagios-style exit codes (`1` = warning, `2` = critical) and a quiet mode that only prints hosts with a problem.
+- **Prometheus output** (`-P`) — emit cert expiry, validity, and reachability as gauges for the textfile collector or Pushgateway, then alert in Prometheus/Grafana.
+- **Slack / Telegram alerts** (`-k`, `-g`/`-i`) — push a notification listing only the hosts that are failing or expiring; tokens can come from the environment, so it drops straight into a cron job.
 - **SSL Labs analysis** (`-a`) — optional deep scan for known vulnerabilities and a letter grade.
 - **Resilient by default** — IPv4/IPv6, automatic retries on dropped connections, host lists from a file or stdin (blank lines and `#` comments ignored), and an optional custom CA bundle (`--ca-file`).
 
@@ -33,9 +35,9 @@ Or by pip installation:
 ```
 ./ssl_checker.py -h
 usage: ssl_checker.py (-H [HOSTS ...] | -f HOST_FILE) [-s HOST:PORT]
-                      [-c FILENAME.CSV] [-j] [-S] [-x] [-J] [-t TIMEOUT]
-                      [-r N] [-a] [-p] [-T PROTO] [--ca-file FILE] [-n N]
-                      [-w DAYS] [-q] [-e] [-v] [-h]
+                      [-c FILENAME.CSV] [-j] [-S] [-P] [-x] [-J] [-t TIMEOUT]
+                      [-r N] [-a] [-p] [-T PROTO] [-C FILE] [-n N] [-w DAYS]
+                      [-q] [-e] [-k URL] [-g TOKEN] [-i ID] [-v] [-h]
 
 Collects useful information about the given host's SSL certificates.
 
@@ -50,6 +52,7 @@ options:
                         Enable CSV file export
   -j, --json            Enable JSON in the output
   -S, --summary         Enable summary output only
+  -P, --prometheus      Output metrics in Prometheus text format
   -x, --html            Enable HTML file export
   -J, --json-save       Enable JSON export individually per host
   -t, --timeout TIMEOUT
@@ -58,13 +61,22 @@ options:
   -a, --analyze         Enable SSL security analysis on the host
   -p, --protocols       Probe which TLS versions (1.0-1.3) the host accepts
   -T, --starttls PROTO  Use STARTTLS first (smtp/imap/pop3/ftp/xmpp)
-  --ca-file FILE        Verify against this CA bundle instead of the system
+  -C, --ca-file FILE    Verify against this CA bundle instead of the system
                         store
   -n, --concurrency N   Number of hosts to check in parallel (default: 1)
   -w, --warning-days DAYS
                         Days-to-expiry threshold for a warning (default: 15)
   -q, --quiet           Only print hosts that have a problem
   -e, --exit-code       Exit non-zero for monitoring (1=warning, 2=critical)
+  -k, --slack-webhook URL
+                        Notify a Slack webhook about problem hosts (or set
+                        SSL_CHECKER_SLACK_WEBHOOK)
+  -g, --telegram-token TOKEN
+                        Telegram bot token for notifications (or set
+                        SSL_CHECKER_TELEGRAM_TOKEN)
+  -i, --telegram-chat-id ID
+                        Telegram chat ID for notifications (or set
+                        SSL_CHECKER_TELEGRAM_CHAT_ID)
   -v, --verbose         Enable verbose to see what is going on
   -h, --help            Show this help message and exit
 ```
@@ -84,6 +96,8 @@ The port is optional here. The script will use 443 if not specified.
 
 `-S, --summary ` This argument will show a quick summary of the output
 
+`-P, --prometheus` Print the results in [Prometheus text exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/) instead of the human-readable report, one series per `(host, port)`. Point a cron job at it and pipe into the [Node Exporter textfile collector](https://github.com/prometheus/node_exporter#textfile-collector) (or the Pushgateway), then alert in Prometheus with expressions like `ssl_cert_expiry_days < 15` or `ssl_check_success == 0`. Exposed gauges: `ssl_check_success`, `ssl_cert_valid`, `ssl_cert_trusted`, `ssl_cert_hostname_valid`, `ssl_cert_expired`, `ssl_cert_expiry_days`, `ssl_cert_not_after_timestamp`, and `ssl_cert_not_before_timestamp`. A host that fails to connect still emits `ssl_check_success 0` so outages are visible.
+
 `-x, --html ` Enable HTML file export
 
 `-J, --json-save` Use this if you want to save as JSON file per host
@@ -94,7 +108,7 @@ The port is optional here. The script will use 443 if not specified.
 
 `-a, --analyze` This argument will include security analysis on the certificate. Takes more time. No result means failure to analyze. 
 
-`--ca-file FILE` Verify the certificate chain against the CA bundle in `FILE` instead of the operating system trust store. Handy for internal/private CAs.
+`-C, --ca-file FILE` Verify the certificate chain against the CA bundle in `FILE` instead of the operating system trust store. Handy for internal/private CAs.
 
 `-q, --quiet` Only print hosts that have a problem (expired, untrusted, wrong hostname, failed, or expiring within `--warning-days`). The summary line is still shown. Great for noisy host lists.
 
@@ -107,6 +121,20 @@ The port is optional here. The script will use 443 if not specified.
 `-w, --warning-days DAYS` Number of days before expiry that counts as a warning (default: 15). Affects the summary and the `-e` exit code.
 
 `-e, --exit-code` Return a monitoring-friendly exit code: `0` = all good, `1` = at least one certificate is expiring within `--warning-days`, `2` = at least one host failed, expired, or is untrusted. Ideal for cron jobs and CI pipelines.
+
+`-k, --slack-webhook URL`, `-g, --telegram-token TOKEN`, `-i, --telegram-chat-id ID` Send a notification listing only the hosts that need attention — anything that failed, is expired, untrusted, has a hostname mismatch, or is expiring within `--warning-days`. Nothing is sent when every host is healthy, so it's safe to wire straight into a cron job. Each flagged host is tagged 🔴 (critical) or 🟠 (warning). You can enable Slack, Telegram, or both at once.
+
+To avoid putting secrets in your shell history or the process list, the tokens can instead be read from the environment: `SSL_CHECKER_SLACK_WEBHOOK`, `SSL_CHECKER_TELEGRAM_TOKEN`, and `SSL_CHECKER_TELEGRAM_CHAT_ID`. The CLI flag takes precedence over the matching variable when both are set.
+
+```
+# Slack via the CLI flag
+./ssl_checker.py -f hosts.txt -q --slack-webhook https://hooks.slack.com/services/XXX/YYY/ZZZ
+
+# Telegram via the environment (nicer for cron)
+export SSL_CHECKER_TELEGRAM_TOKEN=123456:ABC-DEF
+export SSL_CHECKER_TELEGRAM_CHAT_ID=-1001234567890
+./ssl_checker.py -f hosts.txt
+```
 
 `-v, --verbose` Shows more output. Good for troubleshooting.
 
