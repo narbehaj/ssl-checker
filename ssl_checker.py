@@ -912,7 +912,7 @@ class SSLChecker:
 
         if isinstance(args.hosts, list) and len(args.hosts) == 0:
             parser.print_help()
-            sys.exit(0)
+            sys.exit(2)
 
         return args
 
